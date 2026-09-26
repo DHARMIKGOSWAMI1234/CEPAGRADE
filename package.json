@@ -1,0 +1,23 @@
+{
+  "name": "cepagrade",
+  "version": "1.0.0",
+  "description": "CEPA GRADE Global CLI — AI-Based Onion Quality Inspection and Automated Grading System",
+  "main": "bin/cepagrade.js",
+  "bin": {
+    "cepagrade": "./bin/cepagrade.js"
+  },
+  "scripts": {
+    "start": "node ./bin/cepagrade.js",
+    "stop": "node ./bin/cepagrade.js stop",
+    "status": "node ./bin/cepagrade.js status"
+  },
+  "keywords": [
+    "cepagrade",
+    "onion-quality-inspection",
+    "smart-agriculture",
+    "cli"
+  ],
+  "author": "THE DEBUGGERS",
+  "license": "UNLICENSED",
+  "private": true
+}

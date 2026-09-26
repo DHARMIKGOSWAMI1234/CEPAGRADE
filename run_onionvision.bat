@@ -66,7 +66,7 @@ if not exist "%CLS_MODEL%" (
     pause
     exit /b 1
 )
-echo [5/8] Required ML models verified (YOLOv8n-seg & MobileNetV3-Small).
+echo [5/8] Required ML models verified (YOLOv8n-seg ^& MobileNetV3-Small).
 
 REM 6. Start Backend (FastAPI on port 8000)
 echo [6/8] Starting FastAPI backend on http://127.0.0.1:8000 ...
@@ -81,7 +81,7 @@ echo [8/8] Waiting for services to initialize...
 set /a ATTEMPTS=0
 
 :WAIT_LOOP
-timeout /t 2 /nobreak >nul
+ping -n 3 127.0.0.1 >nul 2>&1
 set /a ATTEMPTS+=1
 
 REM Check backend health

@@ -16,19 +16,19 @@ taskkill /FI "WINDOWTITLE eq ONIONVISION Frontend (Vite)*" /T /F >nul 2>&1
 
 REM 2. Terminate process on Port 8000 (FastAPI Backend)
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8000" ^| findstr "LISTENING"') do (
-    echo Stopping process on port 8000 (PID: %%a)...
+    echo Stopping process on port 8000 [PID: %%a]...
     taskkill /PID %%a /F >nul 2>&1
 )
 
 REM 3. Terminate process on Port 5173 (Vite Frontend)
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":5173" ^| findstr "LISTENING"') do (
-    echo Stopping process on port 5173 (PID: %%a)...
+    echo Stopping process on port 5173 [PID: %%a]...
     taskkill /PID %%a /F >nul 2>&1
 )
 
 REM 4. Terminate process on Port 5174 (Secondary Vite port if used)
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":5174" ^| findstr "LISTENING"') do (
-    echo Stopping process on port 5174 (PID: %%a)...
+    echo Stopping process on port 5174 [PID: %%a]...
     taskkill /PID %%a /F >nul 2>&1
 )
 
