@@ -1,0 +1,25 @@
+{
+  "model_name": "onion_health_mobilenetv3_small.pth",
+  "architecture": "MobileNetV3-Small",
+  "task": "Binary Bulb Health Classification (Healthy vs Unhealthy)",
+  "epochs_trained": 10,
+  "batch_size": 64,
+  "classes": [
+    "Healthy",
+    "Unhealthy"
+  ],
+  "test_samples_total": 1840,
+  "metrics": {
+    "overall_accuracy": 0.9984,
+    "unhealthy_precision": 1.0,
+    "unhealthy_recall": 0.995,
+    "unhealthy_f1": 0.9975
+  },
+  "confusion_matrix": {
+    "true_healthy_pred_healthy": 1235,
+    "true_healthy_pred_unhealthy": 0,
+    "true_unhealthy_pred_healthy": 3,
+    "true_unhealthy_pred_unhealthy": 602
+  },
+  "mean_inference_latency_ms": 0.14
+}

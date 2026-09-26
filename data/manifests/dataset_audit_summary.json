@@ -1,0 +1,45 @@
+{
+  "audit_timestamp": "2026-09-26T00:10:00Z",
+  "total_datasets_audited": 3,
+  "datasets": [
+    {
+      "id": "DATASET_01",
+      "name": "Onion Segmentation",
+      "total_images": 4849,
+      "total_annotations": 13927,
+      "task": "Segmentation & Reference-Object Detection",
+      "status": "APPROVED_FOR_TASK_1"
+    },
+    {
+      "id": "DATASET_02",
+      "name": "Image Dataset of Red and White Onion Bulbs and Leaves",
+      "total_images": 16300,
+      "bulb_images": 12260,
+      "leaves_images": 4040,
+      "task": "Bulb Quality (Healthy vs Unhealthy) & Variety Classification",
+      "status": "APPROVED_FOR_TASK_2_BULBS_ONLY"
+    },
+    {
+      "id": "DATASET_03",
+      "name": "dataverse_files (Harvard Dataverse Sample Set)",
+      "total_images": 5,
+      "task": "Qualitative Reference / Test Samples Only",
+      "status": "NOT_SUITABLE_FOR_TRAINING"
+    }
+  ],
+  "combined_statistics": {
+    "total_images_available": 21154,
+    "total_segmentation_images": 4849,
+    "total_quality_classification_bulb_images": 12260,
+    "total_unusable_leaf_images_filtered": 4040,
+    "corrupted_images_found": 0,
+    "cross_dataset_duplicate_leakage": 0
+  },
+  "compatibility_matrix": {
+    "can_dataset_1_be_used_for_segmentation": true,
+    "can_dataset_2_be_used_for_quality_classification": true,
+    "can_dataset_3_be_used_for_training": false,
+    "can_datasets_be_merged": false,
+    "merge_recommendation": "DO NOT MERGE. Datasets represent fundamentally different tasks, imaging environments, and annotation paradigms. Keep strictly separated."
+  }
+}

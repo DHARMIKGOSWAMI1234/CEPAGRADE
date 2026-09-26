@@ -1,0 +1,56 @@
+{
+  "filename": "Onion-Bad4.jpg",
+  "stem": "Onion-Bad4",
+  "image_dimensions": [
+    600,
+    399
+  ],
+  "underlying_format": "WEBP",
+  "pipeline_status": "review_required",
+  "total_onions_detected": 1,
+  "reference_object_detected": false,
+  "calibration_status": "NO_REFERENCE_OBJECT_DETECTED",
+  "processing_time_ms": 37.44,
+  "onions": [
+    {
+      "onion_number": 1,
+      "variety": "Yellow-Onion",
+      "segmentation_confidence": 0.8955,
+      "segmentation_source": "yolov8n-seg",
+      "quality_class": "Unhealthy",
+      "quality_confidence": 0.9975,
+      "quality_source": "mobilenetv3-small",
+      "size_mm": null,
+      "size_pixels": 186.5,
+      "grade": "Grade C",
+      "grading_source": "deterministic-rule-engine",
+      "quality_score": 45.0,
+      "review_status": "REVIEW_RECOMMENDED",
+      "needs_review": true,
+      "reasons": [
+        "Grade reduced because health classification was Unhealthy.",
+        "Physical size unavailable because calibration reference was not configured.",
+        "Physical millimeter scale uncalibrated."
+      ],
+      "bbox": [
+        220,
+        97,
+        414,
+        278
+      ],
+      "morphometry": {
+        "area_pixels": 27312.5,
+        "perimeter_pixels": 651.1,
+        "bbox_width_pixels": 194,
+        "bbox_height_pixels": 181,
+        "major_axis_pixels": 207.9,
+        "minor_axis_pixels": 169.3,
+        "aspect_ratio": 1.228,
+        "circularity": 0.81,
+        "equivalent_diameter_pixels": 186.5,
+        "is_valid_geometry": true,
+        "geometry_notes": "Valid morphometry"
+      }
+    }
+  ]
+}

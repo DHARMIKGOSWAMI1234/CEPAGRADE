@@ -1,0 +1,55 @@
+{
+  "dataset_name": "Image Dataset of Red and White Onion Bulbs and Leaves",
+  "source": "Mendeley Data, V1 (doi:10.17632/42bcyncfhy.1)",
+  "authors": "Kulkarni, Vinaya; Pawale, Sanjesh; Suryawanshi, Yogesh (2025)",
+  "local_archive_path": "C:\\Users\\gmune\\Downloads\\Image Dataset of Red and White Onion Bulbs and Lea.zip",
+  "working_archive_path": "C:\\Users\\gmune\\OneDrive\\Desktop\\ONION\\ml\\datasets\\working\\dataset_02\\Image Dataset of Red and White Onion Bulbs and Lea\\Onion Leaves and Bulb Dataset.zip",
+  "archive_size_bytes": 1607074752,
+  "archive_size_mb": 1532.63,
+  "version": "1.0",
+  "license": "CC BY 4.0",
+  "annotation_format": "Directory-based hierarchical classification labels",
+  "segmentation_available": false,
+  "bounding_boxes_available": false,
+  "total_images": 16300,
+  "image_formats": {
+    "JPEG": 16300
+  },
+  "color_channels": 3,
+  "dimensions_summary": {
+    "1024x768": 1011,
+    "576x768": 499
+  },
+  "corrupted_files": 0,
+  "duplicate_clusters": 28,
+  "duplicate_file_instances": 29,
+  "cross_class_duplicates": 0,
+  "classes": {
+    "1. Leaves/1. Healthy/1. Single": 1010,
+    "1. Leaves/1. Healthy/2. Multiple": 1010,
+    "1. Leaves/2. Unhealthy/1. Single": 1010,
+    "1. Leaves/2. Unhealthy/2. Multiple": 1010,
+    "2. Bulb/1. Healthy/1. Red Onion/1. Single": 3000,
+    "2. Bulb/1. Healthy/1. Red Onion/2. Multiple": 1110,
+    "2. Bulb/1. Healthy/2. White Onion/1. Single": 3000,
+    "2. Bulb/1. Healthy/2. White Onion/2. Multiple": 1110,
+    "2. Bulb/2. Unhealthy/1. Red Onion/1. Single": 1010,
+    "2. Bulb/2. Unhealthy/1. Red Onion/2. Multiple": 1010,
+    "2. Bulb/2. Unhealthy/2. White Onion/1. Single": 1010,
+    "2. Bulb/2. Unhealthy/2. White Onion/2. Multiple": 1010
+  },
+  "high_level_breakdown": {
+    "bulb_total": 12260,
+    "bulb_healthy": 8220,
+    "bulb_unhealthy": 4040,
+    "leaves_total": 4040,
+    "leaves_healthy": 2020,
+    "leaves_unhealthy": 2020
+  },
+  "intended_use": "Quality Classification (Bulb Healthy vs Unhealthy) and Variety Classification (Red vs White)",
+  "limitations": [
+    "Does not contain segmentation masks or bounding box coordinates",
+    "Health labels are binary ('Healthy' vs 'Unhealthy'); specific disease or defect subtypes are not labeled",
+    "4,040 images are plant leaves, which must be filtered out for bulb quality inspection pipelines"
+  ]
+}

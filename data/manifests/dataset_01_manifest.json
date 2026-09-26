@@ -1,0 +1,80 @@
+{
+  "dataset_name": "Onion Segmentation",
+  "source": "Roboflow Universe (Export v7-full)",
+  "local_archive_path": "C:\\Users\\gmune\\Downloads\\Onion Segmentation.v7-full.coco.zip",
+  "archive_size_bytes": 267757300,
+  "archive_size_mb": 255.35,
+  "version": "7.0",
+  "license": "CC BY 4.0",
+  "annotation_format": "COCO Segmentation (JSON)",
+  "segmentation_available": true,
+  "bounding_boxes_available": true,
+  "splits": {
+    "train": {
+      "image_count": 3373,
+      "annotation_count": 9679
+    },
+    "valid": {
+      "image_count": 509,
+      "annotation_count": 1463
+    },
+    "test": {
+      "image_count": 967,
+      "annotation_count": 2785
+    }
+  },
+  "categories": {
+    "0": {
+      "id": 0,
+      "name": "Red-Onion",
+      "supercategory": "none"
+    },
+    "1": {
+      "id": 1,
+      "name": "Red-Onion",
+      "supercategory": "Red-Onion"
+    },
+    "2": {
+      "id": 2,
+      "name": "Reference-Object",
+      "supercategory": "Red-Onion"
+    },
+    "3": {
+      "id": 3,
+      "name": "Yellow-Onion",
+      "supercategory": "Red-Onion"
+    }
+  },
+  "category_annotation_counts": {
+    "1_Red-Onion": 4452,
+    "2_Reference-Object": 4849,
+    "3_Yellow-Onion": 4626
+  },
+  "category_image_counts": {
+    "1_Red-Onion": 2382,
+    "2_Reference-Object": 4849,
+    "3_Yellow-Onion": 2467
+  },
+  "total_images": 4849,
+  "total_annotations": 13927,
+  "image_formats": {
+    "JPEG": 4849
+  },
+  "image_dimensions": {
+    "width": 640,
+    "height": 640,
+    "channels": 3
+  },
+  "corrupted_files": 0,
+  "duplicate_files": 0,
+  "data_leakage_between_splits": 0,
+  "has_reference_object": true,
+  "reference_object_annotation_count": 4849,
+  "intended_use": "Instance Segmentation, Onion Detection, and Scale-Reference Localization",
+  "limitations": [
+    "Validation split contains 0 Yellow-Onion annotations (only Red-Onion and Reference-Object)",
+    "Category ID 0 ('Red-Onion') contains 0 annotations across all splits (unused artifact)",
+    "Does not contain visible defect/rot or healthy/unhealthy quality annotations",
+    "Physical dimensions (mm) of Reference-Object not stated in COCO metadata"
+  ]
+}

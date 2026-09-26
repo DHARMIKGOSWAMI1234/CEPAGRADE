@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-page: #FFFFFF;
+    --bg-surface: #FAFAFA;
+    --text-primary: #18181B;
+    --text-secondary: #71717A;
+    --border-color: #F3E8EF;
+    --brand-primary: #EC4899;
+    --brand-deep: #DB2777;
+    --brand-soft: #FDF2F8;
+  }
+
+  .dark {
+    --bg-page: #050505;
+    --bg-surface: #0D0D0F;
+    --bg-card: #121214;
+    --bg-elevated: #18181B;
+    --text-primary: #FAFAFA;
+    --text-secondary: #A1A1AA;
+    --border-color: #27272A;
+    --brand-primary: #EC4899;
+    --brand-bright: #F472B6;
+  }
+
+  body {
+    @apply font-sans bg-white text-zinc-900 dark:bg-[#050505] dark:text-zinc-100 antialiased min-h-screen overflow-x-hidden selection:bg-brand-500/20 selection:text-brand-900 dark:selection:bg-brand-500/30 dark:selection:text-brand-200 transition-colors duration-150;
+  }
+
+  /* Monospace tabular numbers for metrological dimensions and ratings */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #E4E4E7;
+  border-radius: 9999px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #27272A;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #D4D4D8;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #3F3F46;
+}
+
+/* Subtle microinteractions */
+@keyframes pulseSubtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+
+.animate-pulse-subtle {
+  animation: pulseSubtle 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Print Styles for Official Inspection Certificates */
+@media print {
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+  }
+  aside, nav, header, button, .no-print {
+    display: none !important;
+  }
+  main, .print-container {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+  }
+}

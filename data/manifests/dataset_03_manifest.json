@@ -1,0 +1,81 @@
+{
+  "dataset_name": "dataverse_files (Harvard Dataverse Sample Set)",
+  "source": "Harvard Dataverse produce sorting studies",
+  "local_archive_path": "C:\\Users\\gmune\\Downloads\\dataverse_files (2).zip",
+  "archive_size_bytes": 40566,
+  "archive_size_kb": 39.62,
+  "version": "NOT PROVIDED",
+  "license": "NOT PROVIDED IN ARCHIVE (CC0 on typical Dataverse public files)",
+  "annotation_format": "NONE (Raw unannotated images named with condition prefix)",
+  "segmentation_available": false,
+  "bounding_boxes_available": false,
+  "total_images": 5,
+  "image_formats": {
+    "JPEG": 3,
+    "WEBP": 2
+  },
+  "dimensions_summary": {
+    "275x183": 3,
+    "600x400": 1,
+    "600x399": 1
+  },
+  "files": [
+    {
+      "filename": "Onion-Bad1.jpg",
+      "size_bytes": 6017,
+      "format": "JPEG",
+      "dimensions": [
+        275,
+        183
+      ],
+      "mode": "RGB"
+    },
+    {
+      "filename": "Onion-Bad2.jpg",
+      "size_bytes": 7340,
+      "format": "JPEG",
+      "dimensions": [
+        275,
+        183
+      ],
+      "mode": "RGB"
+    },
+    {
+      "filename": "Onion-Bad3.jpg",
+      "size_bytes": 7174,
+      "format": "WEBP",
+      "dimensions": [
+        600,
+        400
+      ],
+      "mode": "RGB"
+    },
+    {
+      "filename": "Onion-Bad4.jpg",
+      "size_bytes": 14154,
+      "format": "WEBP",
+      "dimensions": [
+        600,
+        399
+      ],
+      "mode": "RGB"
+    },
+    {
+      "filename": "Onion-Bad.jpg",
+      "size_bytes": 5513,
+      "format": "JPEG",
+      "dimensions": [
+        275,
+        183
+      ],
+      "mode": "RGB"
+    }
+  ],
+  "intended_use": "External qualitative validation or sanity testing only",
+  "limitations": [
+    "Extremely small sample size (only 5 images total)",
+    "Cannot train or evaluate machine learning models independently",
+    "Mismatched encoding: 2 images have WEBP encoding inside .jpg filenames",
+    "No ground-truth bounding boxes, segmentation masks, or measurement reference"
+  ]
+}

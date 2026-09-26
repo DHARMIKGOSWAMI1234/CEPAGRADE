@@ -1,0 +1,49 @@
+[
+  {
+    "case": "1_single_onion",
+    "image": "IMG_E2557_JPG.rf.ca1bff2ea3a8477d0d69956e7af22d81.jpg",
+    "total_onions": 1,
+    "quality_score": 55.0,
+    "scale_status": "ESTIMATED"
+  },
+  {
+    "case": "2_multiple_onions",
+    "image": "IMG_E2574_JPG.rf.409d37b8580066922c0da689075c548f.jpg",
+    "total_onions": 3,
+    "quality_score": 51.7,
+    "scale_status": "ESTIMATED"
+  },
+  {
+    "case": "3_reference_calibration",
+    "image": "IMG_E2557_JPG.rf.ca1bff2ea3a8477d0d69956e7af22d81.jpg",
+    "calibration": {
+      "status": "ESTIMATED",
+      "reference_detected": true,
+      "reference_pixel_diameter": 119.0,
+      "reference_confidence": 0.975,
+      "known_reference_mm": 25.0,
+      "mm_per_pixel": 0.21008,
+      "pixels_per_mm": 4.76,
+      "notes": "Scale calibrated to 4.76 px/mm using 25.0 mm reference standard."
+    },
+    "average_size_mm": 24.7
+  },
+  {
+    "case": "4_healthy_bulb",
+    "image": "Onion04043.jpg",
+    "quality_class": "Healthy",
+    "grade": "Grade A"
+  },
+  {
+    "case": "5_unhealthy_bulb",
+    "image": "Onion12271.jpg",
+    "quality_class": "Unhealthy",
+    "grade": "Grade C"
+  },
+  {
+    "case": "6_difficult_cluster",
+    "image": "IMG_E8163_JPG.rf.ca3b01393b010b759947f94084fd668e.jpg",
+    "total_onions": 2,
+    "review_status": "completed"
+  }
+]

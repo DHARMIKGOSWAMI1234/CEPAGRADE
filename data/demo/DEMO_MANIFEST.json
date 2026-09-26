@@ -1,0 +1,116 @@
+{
+  "version": "1.0.0",
+  "created_phase": "Phase 06 Demo Hardening",
+  "description": "Curated collection of representative real onion images for SIH live evaluation.",
+  "total_images": 11,
+  "categories": [
+    "01_single_onion",
+    "02_multiple_onions",
+    "03_reference_calibration",
+    "04_healthy",
+    "05_unhealthy",
+    "06_difficult_cluster",
+    "07_dataset3_external"
+  ],
+  "images": [
+    {
+      "category": "01_single_onion",
+      "filename": "demo_single_onion.jpg",
+      "source_dataset": "Dataset 1 (Roboflow Onion Segmentation v7)",
+      "source_path": "data\\processed\\segmentation\\images\\test\\IMG_E2607_JPG.rf.499cd4da9549314827488961f04f4caf.jpg",
+      "purpose": "Demonstration of individual onion localization, boundary segmentation, and morphometry extraction.",
+      "expected_behavior": "Single isolated onion segmented with high confidence; contour and bounding box derived.",
+      "calibration_available": true
+    },
+    {
+      "category": "02_multiple_onions",
+      "filename": "demo_multiple_onions.jpg",
+      "source_dataset": "Dataset 1 (Roboflow Onion Segmentation v7)",
+      "source_path": "data\\processed\\segmentation\\images\\test\\IMG_E2574_JPG.rf.409d37b8580066922c0da689075c548f.jpg",
+      "purpose": "Multi-instance batch inspection demonstrating simultaneous segmentation and batch analytics.",
+      "expected_behavior": "Multiple distinct onion bulbs localized and extracted into individual crops.",
+      "calibration_available": true
+    },
+    {
+      "category": "03_reference_calibration",
+      "filename": "demo_reference_coin_calibration.jpg",
+      "source_dataset": "Dataset 1 (Roboflow Onion Segmentation v7)",
+      "source_path": "data\\processed\\segmentation\\images\\test\\IMG_E2581_JPG.rf.dae5d0f16314711c91a7164a4c9b411a.jpg",
+      "purpose": "Physical scale calibration using a planar reference coin/disc to convert pixels into real millimetres.",
+      "expected_behavior": "Reference disc detected; pixels_per_mm computed; bulb diameters reported in physical mm.",
+      "calibration_available": true
+    },
+    {
+      "category": "04_healthy",
+      "filename": "demo_healthy_onion.jpg",
+      "source_dataset": "Dataset 2 (Red & White Onion Bulbs and Leaves)",
+      "source_path": "data\\processed\\classification\\test\\healthy\\Onion04043.jpg",
+      "purpose": "Demonstrating high-confidence Healthy bulb classification using MobileNetV3-Small.",
+      "expected_behavior": "Clean surface texture classified as Healthy; eligible for Grade A or B.",
+      "calibration_available": false
+    },
+    {
+      "category": "05_unhealthy",
+      "filename": "demo_unhealthy_onion.jpg",
+      "source_dataset": "Dataset 2 (Red & White Onion Bulbs and Leaves)",
+      "source_path": "data\\processed\\classification\\test\\unhealthy\\Onion12271.jpg",
+      "purpose": "Demonstrating surface defect / rotting detection and deterministic down-grading.",
+      "expected_behavior": "Visible surface blemish classified as Unhealthy; grade capped at Grade C or Reject.",
+      "calibration_available": false
+    },
+    {
+      "category": "06_difficult_cluster",
+      "filename": "demo_touching_cluster.jpg",
+      "source_dataset": "Dataset 1 (Roboflow Onion Segmentation v7)",
+      "source_path": "data\\processed\\segmentation\\images\\test\\IMG_E2659_JPG.rf.aa57408108e035461d0318038ab9930b.jpg",
+      "purpose": "Evaluating instance separation performance when multiple bulbs are touching or occluded.",
+      "expected_behavior": "YOLO polygon instance masks separate adjacent bulb boundaries.",
+      "calibration_available": true
+    },
+    {
+      "category": "07_dataset3_external",
+      "filename": "Onion-Bad.jpg",
+      "source_dataset": "Dataset 3 (Harvard Dataverse Sample Set)",
+      "source_path": "data\\raw\\dataset_03\\Onion-Bad.jpg",
+      "purpose": "External qualitative validation on unseen third-party produce sorting imagery.",
+      "expected_behavior": "Expected behavior not predetermined; used for live inference.",
+      "calibration_available": false
+    },
+    {
+      "category": "07_dataset3_external",
+      "filename": "Onion-Bad1.jpg",
+      "source_dataset": "Dataset 3 (Harvard Dataverse Sample Set)",
+      "source_path": "data\\raw\\dataset_03\\Onion-Bad1.jpg",
+      "purpose": "External qualitative validation on unseen third-party produce sorting imagery.",
+      "expected_behavior": "Expected behavior not predetermined; used for live inference.",
+      "calibration_available": false
+    },
+    {
+      "category": "07_dataset3_external",
+      "filename": "Onion-Bad2.jpg",
+      "source_dataset": "Dataset 3 (Harvard Dataverse Sample Set)",
+      "source_path": "data\\raw\\dataset_03\\Onion-Bad2.jpg",
+      "purpose": "External qualitative validation on unseen third-party produce sorting imagery.",
+      "expected_behavior": "Expected behavior not predetermined; used for live inference.",
+      "calibration_available": false
+    },
+    {
+      "category": "07_dataset3_external",
+      "filename": "Onion-Bad3.jpg",
+      "source_dataset": "Dataset 3 (Harvard Dataverse Sample Set)",
+      "source_path": "data\\raw\\dataset_03\\Onion-Bad3.jpg",
+      "purpose": "External qualitative validation on unseen third-party produce sorting imagery.",
+      "expected_behavior": "Expected behavior not predetermined; used for live inference.",
+      "calibration_available": false
+    },
+    {
+      "category": "07_dataset3_external",
+      "filename": "Onion-Bad4.jpg",
+      "source_dataset": "Dataset 3 (Harvard Dataverse Sample Set)",
+      "source_path": "data\\raw\\dataset_03\\Onion-Bad4.jpg",
+      "purpose": "External qualitative validation on unseen third-party produce sorting imagery.",
+      "expected_behavior": "Expected behavior not predetermined; used for live inference.",
+      "calibration_available": false
+    }
+  ]
+}
