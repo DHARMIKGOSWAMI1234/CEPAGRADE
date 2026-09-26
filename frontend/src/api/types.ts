@@ -1,5 +1,5 @@
 /**
- * ONIONVISION API TypeScript Type Definitions
+ * CEPA GRADE API TypeScript Type Definitions
  * Exact mirrors of FastAPI Pydantic models and CV pipeline output schemas.
  */
 

@@ -10,8 +10,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -89,4 +89,6 @@ temp_chrome_user_data/
 # Generated Reports
 reports/*.pdf
 !reports/.gitkeep
+backend/data/reports/*.pdf
+!backend/data/reports/.gitkeep
 

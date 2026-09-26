@@ -65,7 +65,7 @@ class NumberedCanvas(canvas.Canvas):
             self.setStrokeColor(colors.HexColor("#cbd5e1"))
             self.setLineWidth(0.5)
             self.line(36, 756, 576, 756)
-            self.drawString(36, 762, "ONIONVISION — AI-Based Onion Quality Inspection Report")
+            self.drawString(36, 762, "CEPA GRADE — AI-Based Onion Quality Inspection and Automated Grading System")
             insp_text = f"Ref: {self.doc_inspection_id}" if self.doc_inspection_id else ""
             self.drawRightString(576, 762, insp_text)
 
@@ -76,7 +76,7 @@ class NumberedCanvas(canvas.Canvas):
         self.drawString(
             36,
             24,
-            "ONIONVISION Technical Inspection System • For Prototype Assistance Only • No Statutory Certification",
+            "CEPA GRADE Quality Inspection System • SMART ONION GRADING FOR A BETTER TOMORROW",
         )
         page_str = f"Page {self._pageNumber} of {page_count}"
         self.drawRightString(576, 24, page_str)
@@ -353,7 +353,7 @@ class PDFReportGenerator:
         # =========================================================================
         header_table_data = [
             [
-                Paragraph("<b>ONIONVISION</b>", self.styles["DocTitle"]),
+                Paragraph("<b>CEPA GRADE</b>", self.styles["DocTitle"]),
                 Paragraph(
                     f"<b>REPORT REF:</b> {inspection.inspection_id}<br/>"
                     f"<b>DATE:</b> {self._format_datetime(inspection.completed_at or inspection.created_at)}<br/>"
@@ -363,8 +363,8 @@ class PDFReportGenerator:
             ],
             [
                 Paragraph(
-                    "<b>AI-Based Onion Quality Inspection & Automated Grading Report</b><br/>"
-                    "<font color='#64748b'>SIH Technical Produce Evaluation • Team: THE DEBUGGERS</font>",
+                    "<b>AI-Based Onion Quality Inspection and Automated Grading System</b><br/>"
+                    "<font color='#EC4899'><b>SMART ONION GRADING FOR A BETTER TOMORROW</b></font> • <font color='#64748b'>Team: THE DEBUGGERS</font>",
                     self.styles["DocSubtitle"],
                 ),
                 Paragraph(

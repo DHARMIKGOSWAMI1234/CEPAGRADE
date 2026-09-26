@@ -13,7 +13,7 @@ export const apiClient = axios.create({
 
 // Request interceptor to automatically attach JWT Bearer token
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('onionvision_token');
+  const token = localStorage.getItem('cepagrade_token') || localStorage.getItem('onionvision_token');
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -27,9 +27,11 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // If unauthorized and token exists, it might be expired
-      const token = localStorage.getItem('onionvision_token');
+      // If unauthorized and token exists, clear expired session
+      const token = localStorage.getItem('cepagrade_token') || localStorage.getItem('onionvision_token');
       if (token && !error.config?.url?.includes('/api/auth/login')) {
+        localStorage.removeItem('cepagrade_token');
+        localStorage.removeItem('cepagrade_user');
         localStorage.removeItem('onionvision_token');
         localStorage.removeItem('onionvision_user');
       }

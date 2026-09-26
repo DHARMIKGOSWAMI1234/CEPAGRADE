@@ -1,7 +1,8 @@
-# ONIONVISION
+# CEPA GRADE
 
-**AI-Based Onion Quality Inspection & Automated Grading System**  
-*Team:* **#THE #DEBUGGERS**  
+**AI-Based Onion Quality Inspection and Automated Grading System**  
+*Tagline:* **SMART ONION GRADING FOR A BETTER TOMORROW**  
+*Team:* **THE DEBUGGERS**  
 *Target:* SIH 2026 Working Prototype  
 
 ---
@@ -10,7 +11,7 @@
 
 Manual post-harvest inspection of onions is labour-intensive, subjective, and prone to inconsistency across different inspectors, lighting environments, and inspection conditions. 
 
-**ONIONVISION** is designed as a computer-vision-based automated inspection and explainable grading system. The system photographs onion batches, performs instance segmentation to isolate individual onions, extracts geometric measurements (size, contour, area), classifies visible quality/defect indicators supported by audited training data, computes an explainable prototype quality score, and provides batch analytics with traceable inspection reports.
+**CEPA GRADE** (formerly ONIONVISION) is designed as a computer-vision-based automated inspection and explainable grading system. The system photographs onion batches, performs instance segmentation to isolate individual onions, extracts geometric measurements (size, contour, area), classifies visible quality/defect indicators supported by audited training data, computes an explainable prototype quality score, and provides batch analytics with traceable inspection reports.
 
 > **Important Notice on Phase 01 Scope:**  
 > In accordance with the Project Master Plan, Phase 01 establishes the **Backend Foundation and Machine Learning Architecture**. No models are trained in Phase 01, and no synthetic or fabricated predictions are produced. The actual ML model architectures and defect classes will be finalized during **Phase 02 (Dataset Audit)** and trained in **Phase 03 (ML Training)**.

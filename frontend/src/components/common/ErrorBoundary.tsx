@@ -21,7 +21,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ONIONVISION Uncaught Error:', error, errorInfo);
+    console.error('CEPA GRADE Uncaught Error:', error, errorInfo);
   }
 
   private handleRetry = () => {
@@ -42,7 +42,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
             <div>
               <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                ONIONVISION couldn't load this view
+                CEPA GRADE couldn't load this view
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                 An unexpected component rendering issue occurred. Your data and background inspection states remain safe.

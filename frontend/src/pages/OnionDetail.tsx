@@ -329,7 +329,7 @@ export const OnionDetailView: React.FC<OnionDetailViewProps> = ({
         </ul>
 
         <div className="pt-2 border-t border-emerald-200/60 dark:border-emerald-800/60 text-[10px] text-slate-500 dark:text-slate-400">
-          * This grade is assigned by the ONIONVISION automated engineering prototype rule engine and does not represent statutory certification (e.g. AGMARK or NAFED).
+          * This grade is assigned by the CEPA GRADE automated engineering prototype rule engine and does not represent statutory certification (e.g. AGMARK or NAFED).
         </div>
       </div>
     </div>

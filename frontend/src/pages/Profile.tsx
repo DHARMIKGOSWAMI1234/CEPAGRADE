@@ -128,12 +128,12 @@ export const Profile: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-zinc-500 dark:text-zinc-400">Member Since:</span>
                 <span className="font-mono text-xs text-zinc-700 dark:text-zinc-300">
-                  {new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                  {user.created_at ? new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'Verified Member'}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-zinc-500 dark:text-zinc-400">Security Standard:</span>
-                <span className="font-mono text-xs text-zinc-700 dark:text-zinc-300">Argon2id + JWT</span>
+                <span className="font-mono text-xs text-zinc-700 dark:text-zinc-300">Supabase Auth (JWT)</span>
               </div>
             </div>
           </Card>

@@ -1,5 +1,5 @@
 /**
- * Formatting helpers for ONIONVISION dashboard
+ * Formatting helpers for CEPA GRADE dashboard
  */
 
 export function formatDate(isoString?: string | null): string {

@@ -2,13 +2,15 @@
 setlocal enabledelayedexpansion
 
 REM ============================================================
-REM ONIONVISION — Autonomous Single-Click Windows Launcher
-REM AI-Based Onion Quality Inspection & Automated Grading System
+REM CEPA GRADE — Autonomous Single-Click Windows Launcher
+REM AI-Based Onion Quality Inspection and Automated Grading System
+REM SMART ONION GRADING FOR A BETTER TOMORROW
 REM Team: THE DEBUGGERS
 REM ============================================================
 
 echo ============================================================
-echo      ONIONVISION -- AI Onion Quality Inspection System
+echo      CEPA GRADE -- AI Onion Quality Inspection System
+echo        SMART ONION GRADING FOR A BETTER TOMORROW
 echo                   Smart India Hackathon
 echo ============================================================
 echo.

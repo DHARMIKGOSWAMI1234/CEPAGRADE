@@ -105,7 +105,7 @@ export const Dashboard: React.FC = () => {
 
       <PageContainer maxWidth="wide">
         {loading && inspections.length === 0 ? (
-          <Loading fullPage label="Connecting to ONIONVISION Database..." />
+          <Loading fullPage label="Connecting to CEPA GRADE Database..." />
         ) : error ? (
           <ErrorState
             title="Database Connection Offline"

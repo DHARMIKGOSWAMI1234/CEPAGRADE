@@ -14,7 +14,7 @@ interface ErrorStateProps {
 
 export const ErrorState: React.FC<ErrorStateProps> = ({
   title = 'Inspection Service Error',
-  message = 'An error occurred while communicating with the ONIONVISION backend.',
+  message = 'An error occurred while communicating with the CEPA GRADE backend.',
   onRetry,
   showBack = false,
   backTo = '/history',

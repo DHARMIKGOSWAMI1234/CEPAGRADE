@@ -33,7 +33,7 @@ export const Reports: React.FC = () => {
     const downloadUrl = `/api/inspections/${inspectionId}/report/pdf`;
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.setAttribute('download', `ONIONVISION_Report_${inspectionId}.pdf`);
+    link.setAttribute('download', `CEPA_GRADE_Report_${inspectionId}.pdf`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
