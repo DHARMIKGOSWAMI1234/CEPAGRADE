@@ -14,6 +14,13 @@ export const apiClient = axios.create({
 
 // Request interceptor to automatically attach Firebase ID Bearer token
 apiClient.interceptors.request.use(async (config) => {
+  // If Firebase is initialized and restoring auth from storage, wait for ready state
+  if (auth && typeof (auth as any).authStateReady === 'function') {
+    try {
+      await (auth as any).authStateReady();
+    } catch {}
+  }
+
   let token = localStorage.getItem('cepagrade_token') || localStorage.getItem('onionvision_token');
   if (auth?.currentUser) {
     try {
@@ -36,14 +43,36 @@ apiClient.interceptors.request.use(async (config) => {
   return Promise.reject(error);
 });
 
-// Response interceptor to handle 401 unauthorized
+// Response interceptor to handle 401 unauthorized with single background refresh retry
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      auth?.currentUser &&
+      !originalRequest.url?.includes('/api/auth/login')
+    ) {
+      originalRequest._retry = true;
+      try {
+        const freshToken = await auth.currentUser.getIdToken(true);
+        if (freshToken) {
+          localStorage.setItem('cepagrade_token', freshToken);
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${freshToken}`;
+          return apiClient(originalRequest);
+        }
+      } catch {
+        // Fall through to clear session if refresh failed
+      }
+    }
+
     if (error.response?.status === 401) {
-      // If unauthorized and token exists, clear expired session
+      // If unauthorized and cannot be refreshed, clear expired session
       const token = localStorage.getItem('cepagrade_token') || localStorage.getItem('onionvision_token');
-      if (token && !error.config?.url?.includes('/api/auth/login')) {
+      if (token && !originalRequest?.url?.includes('/api/auth/login')) {
         localStorage.removeItem('cepagrade_token');
         localStorage.removeItem('cepagrade_user');
         localStorage.removeItem('onionvision_token');

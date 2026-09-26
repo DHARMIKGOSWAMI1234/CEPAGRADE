@@ -194,37 +194,16 @@ def verify_firebase_token(token: str, require_email_verified: bool = True) -> Au
     except Exception:
         pass
 
-    # 2. Verify with official Firebase Admin SDK
+    # 2. Verify with official Firebase Admin SDK (if credentialed) or Google Public Certificates
+    decoded: Optional[Dict[str, Any]] = None
     app = get_firebase_app()
     if app is not None:
         try:
             decoded = admin_auth.verify_id_token(clean_token, app=app, check_revoked=False)
-            uid = decoded.get("uid") or decoded.get("sub", "")
-            email = decoded.get("email", "")
-            email_verified = bool(decoded.get("email_verified", False))
-
-            user = AuthenticatedUser(
-                id=uid,
-                email=email,
-                name=decoded.get("name") or (email.split("@")[0] if email else "Operator"),
-                role=decoded.get("role", "operator"),
-                email_verified=email_verified,
-                is_active=True,
-                created_at=datetime.fromtimestamp(decoded.get("auth_time", time.time()), tz=timezone.utc),
-            )
-
-            # Enforce email verification (Part 13)
-            if require_email_verified and not user.email_verified:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Email verification required. Please verify your email before accessing CEPA GRADE.",
-                )
-
-            return user
         except admin_auth.ExpiredIdTokenError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Firebase ID token has expired. Please sign in again.",
+                detail="Your session has expired. Please sign in again.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         except admin_auth.InvalidIdTokenError as e:
@@ -234,15 +213,71 @@ def verify_firebase_token(token: str, require_email_verified: bool = True) -> Au
                 headers={"WWW-Authenticate": "Bearer"},
             )
         except Exception:
+            # Fall back to public certificate verification if service account credentials are not installed
+            decoded = None
+
+    if decoded is None:
+        project_id = (settings.FIREBASE_PROJECT_ID or "cepa-grade").strip()
+        if not project_id:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication service is temporarily unavailable.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        try:
+            from google.oauth2 import id_token as google_id_token
+            from google.auth.transport import requests as google_requests
+
+            req = google_requests.Request()
+            decoded = google_id_token.verify_firebase_token(clean_token, req, audience=project_id)
+        except ValueError as e:
+            err_str = str(e).lower()
+            if "expired" in err_str:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Your session has expired. Please sign in again.",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            elif "wrong audience" in err_str or "wrong project" in err_str:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Firebase token project mismatch. Please sign in again.",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"Invalid Firebase ID token: {str(e)}",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+        except HTTPException:
+            raise
+        except Exception:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authentication failed. Token signature could not be verified by Firebase Admin.",
+                detail="Your session is no longer valid. Please sign in again.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-    # 3. If Firebase Admin is not initialized and token wasn't valid HS256:
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid authentication token or unconfigured Firebase verification.",
-        headers={"WWW-Authenticate": "Bearer"},
+    uid = str(decoded.get("user_id") or decoded.get("uid") or decoded.get("sub", ""))
+    email = str(decoded.get("email", ""))
+    email_verified = bool(decoded.get("email_verified", False))
+
+    user = AuthenticatedUser(
+        id=uid,
+        email=email,
+        name=decoded.get("name") or (email.split("@")[0] if email else "Operator"),
+        role=decoded.get("role", "operator"),
+        email_verified=email_verified,
+        is_active=True,
+        created_at=datetime.fromtimestamp(decoded.get("auth_time", time.time()), tz=timezone.utc),
     )
+
+    # Enforce email verification (Part 13)
+    if require_email_verified and not user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email verification required. Please verify your email before accessing CEPA GRADE.",
+        )
+
+    return user

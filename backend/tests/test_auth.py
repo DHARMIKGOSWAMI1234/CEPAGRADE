@@ -472,3 +472,25 @@ def test_demo_access_success_and_rate_limit(client: TestClient):
     assert res_other.status_code == 200
 
 
+def test_clean_auth_error_messages_distinction(unauthenticated_client: TestClient):
+    """Verifies that expired, invalid, and missing tokens produce distinct, clean user-facing error messages."""
+    # 1. Missing header
+    res_missing = unauthenticated_client.get("/api/inspections")
+    assert res_missing.status_code == 401
+    assert "authentication required" in res_missing.json()["detail"].lower()
+
+    # 2. Expired token
+    expired_token = create_test_firebase_token(uid="exp-1", email="exp@test.com", expires_in_sec=-100)
+    res_expired = unauthenticated_client.get("/api/inspections", headers={"Authorization": f"Bearer {expired_token}"})
+    assert res_expired.status_code == 401
+    assert "expired" in res_expired.json()["detail"].lower()
+
+    # 3. Invalid / tampered token
+    valid_token = create_test_firebase_token(uid="valid-1", email="valid@test.com")
+    tampered_token = valid_token[:-5] + "aaaaa"
+    res_invalid = unauthenticated_client.get("/api/inspections", headers={"Authorization": f"Bearer {tampered_token}"})
+    assert res_invalid.status_code == 401
+    assert "invalid" in res_invalid.json()["detail"].lower() or "no longer valid" in res_invalid.json()["detail"].lower()
+
+
+

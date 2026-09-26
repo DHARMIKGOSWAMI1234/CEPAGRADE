@@ -126,11 +126,35 @@ export const Dashboard: React.FC = () => {
         {loading && inspections.length === 0 ? (
           <Loading fullPage label="Connecting to CEPA GRADE Database..." />
         ) : error ? (
-          <ErrorState
-            title="Database Connection Offline"
-            message={error}
-            onRetry={refetch}
-          />
+          (() => {
+            const isAuthError = Boolean(
+              error && (
+                error.toLowerCase().includes('token') ||
+                error.toLowerCase().includes('session') ||
+                error.toLowerCase().includes('expired') ||
+                error.toLowerCase().includes('unauthorized') ||
+                error.toLowerCase().includes('authentication') ||
+                error.toLowerCase().includes('sign in')
+              )
+            );
+            const userFriendlyMsg = isAuthError
+              ? error.toLowerCase().includes('expired')
+                ? 'Your session has expired. Please sign in again.'
+                : error.toLowerCase().includes('temporarily unavailable')
+                ? 'Authentication service is temporarily unavailable.'
+                : 'Your session is no longer valid. Please sign in again.'
+              : error;
+
+            return (
+              <ErrorState
+                title={isAuthError ? 'Session Authentication Required' : 'Database Connection Offline'}
+                message={userFriendlyMsg}
+                onRetry={isAuthError ? () => navigate('/login') : refetch}
+                showBack={isAuthError}
+                backTo="/login"
+              />
+            );
+          })()
         ) : (
           <div className="space-y-6">
             {/* Editorial Hero Banner */}
