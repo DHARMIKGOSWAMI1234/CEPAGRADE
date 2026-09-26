@@ -132,6 +132,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({ onStartInspection, loadi
             >
               <input
                 ref={inputRef}
+                id="upload-file-input"
                 type="file"
                 accept=".jpg,.jpeg,.png,.webp"
                 className="hidden"

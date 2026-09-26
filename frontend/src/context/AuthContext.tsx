@@ -347,7 +347,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             clearSession();
           }
         } else {
-          clearSession();
+          // If no Firebase user, check if a valid local backend/demo session is stored
+          const storedToken =
+            localStorage.getItem('cepagrade_token') || localStorage.getItem('onionvision_token');
+          if (storedToken) {
+            try {
+              const currentUser = await authApi.getMe();
+              if (isMounted) {
+                const mapped: User = {
+                  id: String(currentUser.id),
+                  name: currentUser.name,
+                  email: currentUser.email,
+                  role: currentUser.role,
+                  emailVerified: true,
+                  is_active: currentUser.is_active,
+                  created_at: currentUser.created_at,
+                };
+                saveSession(storedToken, mapped, localStorage.getItem('cepagrade_is_demo') === 'true');
+              }
+            } catch {
+              if (isMounted) clearSession();
+            }
+          } else {
+            clearSession();
+          }
         }
         setIsLoading(false);
       });
