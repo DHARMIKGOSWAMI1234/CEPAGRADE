@@ -231,12 +231,19 @@ export const InspectionResults: React.FC = () => {
                             <span className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">
                               Onion #{o.onion_number}
                             </span>
-                            <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
-                              {o.grade || 'Review'}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {o.grade && (
+                                <span className="text-[10px] font-bold font-mono px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+                                  {o.grade}
+                                </span>
+                              )}
+                              <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                                Needs Review
+                              </span>
+                            </div>
                           </div>
 
-                          <p className="text-[11px] text-red-600 dark:text-red-400 font-medium truncate">
+                          <p className="text-[11px] text-amber-900 dark:text-amber-300/90 font-medium truncate">
                             {o.reasons && o.reasons.length > 0 ? o.reasons[0] : 'Low classification confidence'}
                           </p>
 

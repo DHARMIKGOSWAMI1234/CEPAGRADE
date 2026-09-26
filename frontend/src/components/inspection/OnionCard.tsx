@@ -44,9 +44,16 @@ export const OnionCard: React.FC<OnionCardProps> = ({ onion, onClick }) => {
             {varietyInfo.label}
           </span>
         </div>
-        <span className={`text-xs px-2.5 py-0.5 rounded-md font-bold ${gradeInfo.badge}`}>
-          {onion.grade || 'Grade C'}
-        </span>
+        <div className="flex items-center gap-2">
+          {onion.quality_score !== null && onion.quality_score !== undefined && !isNaN(onion.quality_score) && (
+            <span className="text-[11px] font-mono font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+              {onion.quality_score.toFixed(0)}/100
+            </span>
+          )}
+          <span className={`text-xs px-2.5 py-0.5 rounded-md font-bold ${gradeInfo.badge}`}>
+            {onion.grade || 'Grade C'}
+          </span>
+        </div>
       </div>
 
       {/* Visual Crop Surface */}

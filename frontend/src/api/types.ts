@@ -51,6 +51,30 @@ export interface OnionMorphometry {
   extent?: number;
 }
 
+export interface GradeBreakdownItem {
+  value_mm?: number | null;
+  classification?: string | null;
+  confidence?: number | null;
+  defect_area_pct?: number | null;
+  rule?: string | null;
+  result?: string | null;
+  score_impact?: number | null;
+  is_defective?: boolean | null;
+  needs_review?: boolean | null;
+}
+
+export interface GradingBreakdown {
+  size?: GradeBreakdownItem;
+  health?: GradeBreakdownItem;
+  defects?: GradeBreakdownItem;
+  confidence?: GradeBreakdownItem;
+  final?: {
+    quality_score?: number;
+    grade?: string;
+    rule?: string;
+  };
+}
+
 export interface OnionResultResponse {
   id: number;
   onion_number: number;
@@ -59,6 +83,8 @@ export interface OnionResultResponse {
   grade?: 'Grade A' | 'Grade B' | 'Grade C' | 'Reject' | string | null;
   confidence?: number | null;
   defect_area?: number | null;
+  quality_score?: number | null;
+  breakdown?: GradingBreakdown | null;
   variety?: 'Red Onion' | 'Yellow Onion' | string | null;
   review_status?: 'AUTO_ACCEPTABLE' | 'REVIEW_RECOMMENDED' | 'MANUAL_REVIEW_REQUIRED' | string | null;
   needs_review?: boolean | null;

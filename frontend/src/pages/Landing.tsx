@@ -288,7 +288,7 @@ export const Landing: React.FC = () => {
                 </div>
 
                 <p className="text-[10px] text-zinc-400 dark:text-zinc-500 text-center italic">
-                  * Illustrative interface preview. Actual measurements and AGMARK grades are computed dynamically upon batch ingestion.
+                  * Illustrative interface preview. Actual measurements and quality grades are computed dynamically upon batch ingestion.
                 </p>
 
               </div>

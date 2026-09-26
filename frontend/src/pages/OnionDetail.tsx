@@ -4,7 +4,6 @@ import {
   X,
   Ruler,
   Sparkles,
-  CheckCircle2,
   Layers,
   ShieldAlert,
   Info,
@@ -19,6 +18,7 @@ import { getSingleOnion } from '../api/inspections';
 import { getAssetUrl } from '../api/client';
 import { getGradeBadge, getQualityBadge, getVarietyStyle } from '../utils/grading';
 import { formatPercent } from '../utils/formatters';
+import { GradingExplainability } from '../components/inspection/GradingExplainability';
 import type { OnionResultResponse } from '../api/types';
 
 interface OnionDetailViewProps {
@@ -63,6 +63,16 @@ export const OnionDetailView: React.FC<OnionDetailViewProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          {onion.quality_score !== null && onion.quality_score !== undefined && (
+            <div className="text-right hidden sm:block">
+              <span className="text-[10px] uppercase font-mono font-bold text-slate-500 dark:text-slate-400 block">
+                Quality Score
+              </span>
+              <span className="text-sm font-black text-slate-900 dark:text-white font-mono">
+                {onion.quality_score.toFixed(0)}/100
+              </span>
+            </div>
+          )}
           <span
             className={`text-base px-3.5 py-1 rounded-xl font-black border shadow-xs ${gradeInfo.badge}`}
           >
@@ -208,10 +218,12 @@ export const OnionDetailView: React.FC<OnionDetailViewProps> = ({
 
               <div className="p-3.5 bg-slate-50 dark:bg-slate-850 rounded-xl border border-slate-200 dark:border-slate-800">
                 <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-                  Defect / Rotting Area (mm²)
+                  Surface Defect Area (%)
                 </span>
                 <span className="text-xl font-bold text-slate-900 dark:text-white font-mono mt-1 block">
-                  {onion.defect_area ? `${onion.defect_area.toFixed(1)} mm²` : '0.0 mm²'}
+                  {onion.defect_area !== null && onion.defect_area !== undefined
+                    ? `${onion.defect_area.toFixed(1)}%`
+                    : '0.0%'}
                 </span>
                 <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">
                   Calculated surface blemish extent
@@ -296,42 +308,8 @@ export const OnionDetailView: React.FC<OnionDetailViewProps> = ({
         </div>
       </div>
 
-      {/* Prominent "Why This Grade?" Section */}
-      <div className="bg-emerald-50/70 dark:bg-emerald-950/20 rounded-xl p-5 border border-emerald-200 dark:border-emerald-800 space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="text-xs font-black text-emerald-950 dark:text-emerald-200 uppercase tracking-wider flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            WHY THIS GRADE: {onion.grade || 'Pending Evaluation'}
-          </h4>
-          <span className="text-[11px] font-mono text-emerald-800 dark:text-emerald-300">
-            Deterministic Rule Engine
-          </span>
-        </div>
-
-        <p className="text-xs text-emerald-900 dark:text-emerald-200/90 font-medium">
-          Actual evaluation criteria satisfied by this instance:
-        </p>
-
-        <ul className="text-xs text-emerald-950 dark:text-emerald-200 space-y-2">
-          {onion.reasons && onion.reasons.length > 0 ? (
-            onion.reasons.map((reason, idx) => (
-              <li key={idx} className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                <span className="leading-snug">{reason}</span>
-              </li>
-            ))
-          ) : (
-            <li className="flex items-start gap-2.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-              <span>Standard defect-free surface evaluation verified</span>
-            </li>
-          )}
-        </ul>
-
-        <div className="pt-2 border-t border-emerald-200/60 dark:border-emerald-800/60 text-[10px] text-slate-500 dark:text-slate-400">
-          * This grade is assigned by the CEPA GRADE automated engineering prototype rule engine and does not represent statutory certification (e.g. AGMARK or NAFED).
-        </div>
-      </div>
+      {/* Structured Explainability & Traceability Breakdown */}
+      <GradingExplainability onion={onion} />
     </div>
   );
 };

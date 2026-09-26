@@ -267,7 +267,7 @@ export const Login: React.FC = () => {
               </div>
               <div className="flex items-center space-x-3 text-sm text-zinc-700 dark:text-zinc-300">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span>Deterministic AGMARK grading & ReportLab PDF certificates</span>
+                <span>Deterministic rule-based grading & ReportLab PDF certificates</span>
               </div>
             </div>
 
