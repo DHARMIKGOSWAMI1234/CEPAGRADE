@@ -74,16 +74,17 @@ def init_db() -> None:
     try:
         from .models import User
         from app.core.security import hash_password
-        if db.query(User).count() == 0:
-            demo_user = User(
-                name="Head Operator",
-                email="operator@onionvision.ai",
-                password_hash=hash_password("Operator123!"),
-                role="operator",
-                is_active=1,
-            )
-            db.add(demo_user)
-            db.commit()
+        for demo_email in ["operator@cepagrade.ai", "operator@onionvision.ai"]:
+            if not db.query(User).filter(User.email == demo_email).first():
+                demo_user = User(
+                    name="Head Operator",
+                    email=demo_email,
+                    password_hash=hash_password("Operator123!"),
+                    role="operator",
+                    is_active=1,
+                )
+                db.add(demo_user)
+        db.commit()
     except Exception:
         db.rollback()
     finally:
