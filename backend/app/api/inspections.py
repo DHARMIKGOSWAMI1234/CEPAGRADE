@@ -187,7 +187,7 @@ def download_inspection_report_pdf(
 )
 def get_inspection_image(
     inspection_id: str,
-    current_user: AuthenticatedUser = Depends(get_current_user),
+    current_user: Optional[AuthenticatedUser] = Depends(get_current_user_optional),
     db: Session = Depends(get_db),
 ):
     """Safely serves the uploaded image for this inspection."""
@@ -197,7 +197,15 @@ def get_inspection_image(
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Inspection '{inspection_id}' not found.")
     
-    inspection_service.verify_inspection_ownership(record, user_id=current_user.id, role=current_user.role)
+    # Enforce ownership if inspection is assigned to a user
+    if record.owner_id is not None or record.user_id is not None:
+        if not current_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required. Please provide a valid Bearer token.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        inspection_service.verify_inspection_ownership(record, user_id=current_user.id, role=current_user.role)
 
     img_path = Path(record.image_path).resolve()
     if not str(img_path).startswith(str(settings.upload_path.resolve())):
@@ -215,7 +223,7 @@ def get_inspection_image(
 )
 def get_inspection_overlay(
     inspection_id: str,
-    current_user: AuthenticatedUser = Depends(get_current_user),
+    current_user: Optional[AuthenticatedUser] = Depends(get_current_user_optional),
     db: Session = Depends(get_db),
 ):
     """Serves the rendered AI segmentation overlay image with polygons and labels."""
@@ -225,7 +233,15 @@ def get_inspection_overlay(
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Inspection '{inspection_id}' not found.")
 
-    inspection_service.verify_inspection_ownership(record, user_id=current_user.id, role=current_user.role)
+    # Enforce ownership if inspection is assigned to a user
+    if record.owner_id is not None or record.user_id is not None:
+        if not current_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required. Please provide a valid Bearer token.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        inspection_service.verify_inspection_ownership(record, user_id=current_user.id, role=current_user.role)
 
     overlay_file = (settings.upload_path / f"{inspection_id}_overlay.jpg").resolve()
     if not str(overlay_file).startswith(str(settings.upload_path.resolve())):
@@ -266,7 +282,7 @@ def get_single_onion(
 def get_onion_crop(
     inspection_id: str,
     onion_number: int,
-    current_user: AuthenticatedUser = Depends(get_current_user),
+    current_user: Optional[AuthenticatedUser] = Depends(get_current_user_optional),
     db: Session = Depends(get_db),
 ):
     """Serves the extracted bounding-box crop for a specific onion."""
@@ -275,7 +291,14 @@ def get_onion_crop(
     record = db.query(Inspection).filter(Inspection.inspection_id == inspection_id).first()
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Inspection '{inspection_id}' not found.")
-    inspection_service.verify_inspection_ownership(record, user_id=current_user.id, role=current_user.role)
+    if record.owner_id is not None or record.user_id is not None:
+        if not current_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required. Please provide a valid Bearer token.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        inspection_service.verify_inspection_ownership(record, user_id=current_user.id, role=current_user.role)
 
     crop_path = (settings.upload_path / f"{inspection_id}_onion_{onion_number}_crop.jpg").resolve()
     if not str(crop_path).startswith(str(settings.upload_path.resolve())):
@@ -293,7 +316,7 @@ def get_onion_crop(
 def get_onion_mask(
     inspection_id: str,
     onion_number: int,
-    current_user: AuthenticatedUser = Depends(get_current_user),
+    current_user: Optional[AuthenticatedUser] = Depends(get_current_user_optional),
     db: Session = Depends(get_db),
 ):
     """Serves the isolated masked crop (background zeroed) for a specific onion."""
@@ -302,7 +325,14 @@ def get_onion_mask(
     record = db.query(Inspection).filter(Inspection.inspection_id == inspection_id).first()
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Inspection '{inspection_id}' not found.")
-    inspection_service.verify_inspection_ownership(record, user_id=current_user.id, role=current_user.role)
+    if record.owner_id is not None or record.user_id is not None:
+        if not current_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required. Please provide a valid Bearer token.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        inspection_service.verify_inspection_ownership(record, user_id=current_user.id, role=current_user.role)
 
     mask_path = (settings.upload_path / f"{inspection_id}_onion_{onion_number}_mask.png").resolve()
     if not str(mask_path).startswith(str(settings.upload_path.resolve())):

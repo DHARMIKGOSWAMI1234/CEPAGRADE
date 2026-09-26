@@ -59,8 +59,14 @@ apiClient.interceptors.response.use(
  */
 export function getAssetUrl(relativePath: string | null | undefined): string {
   if (!relativePath) return '';
-  if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
-    return relativePath;
+  let url = relativePath;
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `${BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
   }
-  return `${BASE_URL}${relativePath.startsWith('/') ? '' : '/'}${relativePath}`;
+  const token = localStorage.getItem('cepagrade_token') || localStorage.getItem('onionvision_token');
+  if (token && !url.includes('token=')) {
+    const separator = url.includes('?') ? '&' : '?';
+    url = `${url}${separator}token=${encodeURIComponent(token)}`;
+  }
+  return url;
 }

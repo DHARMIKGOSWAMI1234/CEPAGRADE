@@ -163,7 +163,7 @@ export const InspectionResults: React.FC = () => {
           {/* High-Level Result Assessment Hero Card */}
           <InspectionSummaryCard inspection={inspection} />
 
-          {/* Visual Inspection Area: Split View Original vs AI Segmentation */}
+          {/* Visual Inspection Area: Split View Original vs AI Inspection */}
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
@@ -172,7 +172,7 @@ export const InspectionResults: React.FC = () => {
                   Visual Inspection Area
                 </h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Dual-panel comparison of raw optical capture versus real YOLOv8n-seg polygon masks
+                  Side-by-side comparison of original produce capture and automated AI inspection
                 </p>
               </div>
             </div>
@@ -181,6 +181,8 @@ export const InspectionResults: React.FC = () => {
               originalImageUrl={inspection.image_url || `/api/inspections/${inspectionId}/image`}
               overlayImageUrl={inspection.overlay_url || `/api/inspections/${inspectionId}/overlay`}
               totalOnions={inspection.total_onions}
+              onions={inspection.onions}
+              calibration={inspection.calibration}
             />
           </section>
 

@@ -1,21 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   ScanLine,
   History,
   FileText,
-  Activity,
-  Cpu,
-  Database,
   User as UserIcon,
   LogOut,
   X,
 } from 'lucide-react';
-import { checkHealth } from '../../api/inspections';
-import type { HealthResponse } from '../../api/types';
 import { Logo } from '../common/Logo';
-import { StatusIndicator } from '../common/StatusIndicator';
 import { useAuth } from '../../context/AuthContext';
 
 interface SidebarProps {
@@ -28,33 +22,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
 }) => {
   const { user, logout } = useAuth();
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [isConnected, setIsConnected] = useState<boolean>(false);
-
-  useEffect(() => {
-    let isMounted = true;
-    const pollHealth = async () => {
-      try {
-        const data = await checkHealth();
-        if (isMounted) {
-          setHealth(data);
-          setIsConnected(true);
-        }
-      } catch {
-        if (isMounted) {
-          setIsConnected(false);
-          setHealth(null);
-        }
-      }
-    };
-
-    pollHealth();
-    const interval = setInterval(pollHealth, 8000);
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, []);
 
   // Role-aware navigation definitions
   const getNavItems = () => {
@@ -119,9 +86,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      {/* Authenticated User Identity */}
+      {/* Authenticated User Identity - Anchored Cleanly at Sidebar Bottom */}
       {user && (
-        <div className="p-3.5 mx-3 mb-3 rounded-xl bg-zinc-50 dark:bg-[#121214] border border-zinc-200 dark:border-[#27272A]">
+        <div className="p-3.5 mx-3 mb-4 mt-auto rounded-xl bg-zinc-50 dark:bg-[#121214] border border-zinc-200/80 dark:border-[#27272A] shadow-soft-xs">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-full bg-brand-500/10 dark:bg-brand-500/20 text-brand-600 dark:text-brand-400 border border-brand-200 dark:border-brand-900/60 flex items-center justify-center font-bold text-xs font-mono shrink-0">
@@ -148,53 +115,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
       )}
-
-      {/* Live Technical System Status Panel */}
-      <div className="p-4 border-t border-zinc-200/90 dark:border-[#27272A] bg-zinc-50/50 dark:bg-[#050505]/40">
-        <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2.5 flex items-center justify-between">
-          <span className="flex items-center gap-1.5">
-            <Activity className="w-3.5 h-3.5 text-brand-500" />
-            System Status
-          </span>
-          <StatusIndicator status={isConnected ? 'online' : 'offline'} size="sm" pulse={isConnected} />
-        </div>
-
-        <div className="space-y-1.5 text-xs">
-          {/* API Status */}
-          <div className="flex items-center justify-between py-1 px-2 rounded-lg bg-white dark:bg-[#121214] border border-zinc-200/80 dark:border-[#27272A]">
-            <span className="text-zinc-500 dark:text-zinc-400 text-[11px]">FastAPI</span>
-            <span className={`text-[11px] font-mono font-semibold ${isConnected ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
-              {isConnected ? 'Connected' : 'Offline'}
-            </span>
-          </div>
-
-          {/* ML Models */}
-          <div className="flex items-center justify-between py-1 px-2 rounded-lg bg-white dark:bg-[#121214] border border-zinc-200/80 dark:border-[#27272A]">
-            <span className="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 text-[11px]">
-              <Cpu className="w-3 h-3 text-zinc-400" />
-              Models
-            </span>
-            <span
-              className={`text-[11px] font-mono font-semibold ${
-                health?.models_ready ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-500'
-              }`}
-            >
-              {health?.models_ready ? 'YOLO+MN' : 'Unloaded'}
-            </span>
-          </div>
-
-          {/* Database */}
-          <div className="flex items-center justify-between py-1 px-2 rounded-lg bg-white dark:bg-[#121214] border border-zinc-200/80 dark:border-[#27272A]">
-            <span className="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 text-[11px]">
-              <Database className="w-3 h-3 text-zinc-400" />
-              Database
-            </span>
-            <span className="text-[11px] font-mono font-semibold text-emerald-600 dark:text-emerald-400">
-              {isConnected ? 'SQLite Active' : 'Offline'}
-            </span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 
