@@ -361,24 +361,41 @@ Evaluated on the held-out test split of 1,840 deduplicated onion bulb images:
 | **Total End-to-End Pipeline** | **68.40 ms** | **65.42 ms** | **86.13 ms** |
 | **Continuous Inspection Throughput** | **14.6 FPS** | **15.3 FPS** | — |
 
+> **Latency Context & Measurement Methodology:**  
+> During preliminary model integration (Phase 03), the standalone neural inference pipeline measured **49.64 ms** mean latency without individual masked crop extraction, without complete OpenCV morphometry, and without database persistence. In Phase 04, the complete production pipeline adds bounding-crop isolation, background-zeroed masked crop extraction, fitted-ellipse morphometry, planar reference calibration, deterministic grading, and SQLite transaction persistence, resulting in the final measured **68.40 ms** mean end-to-end latency (~14.6 FPS continuous throughput).
+
 ---
 
 ## 8. Datasets & Data Governance
 
-CEPA GRADE was trained on audited, real-world image datasets totaling **21,154 raw images**:
+CEPA GRADE was trained and evaluated on audited, real-world image datasets totaling **21,154 raw images**:
 
 | Dataset Name | Source & Provenance | Image Count | Annotations | Task in CEPA GRADE | License |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Onion Segmentation (v7-full)** | Roboflow Universe | 4,849 images (640x640) | 13,927 COCO polygons | Multi-onion instance segmentation & scale reference detection | CC BY 4.0 |
-| **Red and White Onion Bulbs and Leaves** | Mendeley Data (`doi:10.17632/42bcyncfhy.1`) | 16,300 images (1024x768) | 16,300 folder labels | Bulb health classification (12,260 bulb images used; 4,040 leaves filtered out) | CC BY 4.0 |
+| **Red and White Onion Bulbs and Leaves** | Mendeley Data (`doi:10.17632/42bcyncfhy.1`) | 16,300 images (1024x768) | 16,300 folder labels | Bulb health classification (12,233 usable deduplicated bulbs) | CC BY 4.0 |
 | **Produce Sorting Sanity Samples** | Harvard Dataverse | 5 images (varied) | Unannotated | External visual inference validation & sanity checking | Open |
 
+### Detailed Dataset Breakdown & Harmonization:
+
+#### Dataset 2 (Mendeley Allium Dataset) Filtering & Deduplication:
+To ensure scientific rigor, the raw 16,300-image Mendeley archive was filtered to isolate only relevant post-harvest produce:
+1. **Original Raw Archive:** 16,300 total images (12,260 bulb photographs + 4,040 leaf photographs).
+2. **Post-Harvest Filtering:** All 4,040 leaf images (24.8% of archive) were filtered out, leaving **12,260 onion bulb images** (8,220 Healthy, 4,040 Unhealthy).
+3. **Internal Hash Deduplication:** MD5 cryptographic auditing identified 28 identical image clusters (29 redundant duplicate files, all within matching class subfolders). Removing these yielded **12,233 unique, usable bulb images**.
+4. **Stratified Partitioning:** The 12,233 usable bulbs were split into stratified partitions:
+   - **Training Set (70%):** 8,562 images (5,753 Healthy, 2,809 Unhealthy)
+   - **Validation Set (15%):** 1,831 images (1,231 Healthy, 600 Unhealthy)
+   - **Held-Out Test Set (15%):** 1,840 images (1,235 Healthy, 605 Unhealthy)
+
+#### Dataset 1 (Roboflow Onion Segmentation) Split Correction:
+- **Total Images:** 4,849 images with 13,927 COCO instance annotations across `Red-Onion` (4,452), `Yellow-Onion` (4,626), and `Reference-Object` (4,849 — 100% presence).
+- **Split Defect Remediation:** The raw export contained 0 yellow onions in validation; a stratified 70/15/15 re-partition was generated (3,393 train, 727 validation, 729 test) ensuring balanced multi-class evaluation.
+
 ### Data Governance & Integrity Safeguards:
-- **No Model Overlap:** Hashing confirmed zero shared images across the three datasets (0% cross-contamination).
-- **Stratified Partitioning:** Stratified 70% train / 15% validation / 15% test splits were applied, correcting a split defect in the source Roboflow export (which originally contained zero yellow onions in validation).
-- **Leaf Exclusion:** All 4,040 onion leaf images from the Mendeley dataset were excluded to focus strictly on post-harvest bulb quality.
-- **Hash Deduplication:** Internal MD5 auditing identified and resolved 28 identical image clusters (29 redundant files) within Dataset 2.
-- **Zero Synthetic Training Images:** All models were trained exclusively on real produce photographs without generative or synthetic imagery.
+- **Zero Cross-Contamination:** SHA-256 and MD5 hash auditing verified 0 shared images across all three datasets.
+- **Zero Synthetic Training Images:** All neural networks were trained exclusively on real-world camera captures; zero synthetic, diffusion-generated, or fabricated images were used.
+- **Strict Label Fidelity:** Defect classifications strictly adhere to verified source labels (`Healthy` vs `Unhealthy`). No unverified sub-defect categories (such as internal neck rot or black mould) were fabricated.
 
 ---
 
@@ -470,11 +487,12 @@ The **Visual Inspection Area** is the core interactive workspace for evaluating 
 
 ## 12. Backend REST API
 
-The FastAPI backend exposes a fully documented, type-safe REST API:
+The FastAPI backend exposes 20 operational REST API endpoints under `/api` alongside the root service status route:
 
 | Method | Endpoint | Description | Auth Required |
 | :--- | :--- | :--- | :---: |
-| `GET` | `/api/health` | Service health status and ML model readiness | Public |
+| `GET` | `/` | Root entry point returning service health, version, and docs link | Public |
+| `GET` | `/api/health` | Service health status and ML model operational readiness | Public |
 | `POST` | `/api/auth/signup` | Register new operator account | Public |
 | `POST` | `/api/auth/login` | Authenticate operator and obtain access token | Public |
 | `GET` | `/api/auth/me` | Retrieve profile of authenticated user | Bearer Token |
@@ -771,14 +789,14 @@ VITE_FIREBASE_APP_ID=your_app_id
 ## 18. Running CEPA GRADE
 
 ### Option A: Single-Click Windows Launcher (Recommended)
-Double-click [`run_onionvision.bat`](file:///c:/Users/gmune/OneDrive/Desktop/ONION/run_onionvision.bat) in the repository root. The script automatically:
+Double-click [`run_onionvision.bat`](run_onionvision.bat) in the repository root. The script automatically:
 1. Verifies Python, Node.js, and virtual environments.
 2. Confirms that model weights exist.
 3. Launches the FastAPI backend on port `8000`.
 4. Launches the Vite dev server on port `5173`.
 5. Waits for health checks to pass and opens `http://localhost:5173` in your default browser.
 
-To stop all services cleanly, run [`stop_onionvision.bat`](file:///c:/Users/gmune/OneDrive/Desktop/ONION/stop_onionvision.bat).
+To stop all services cleanly, run [`stop_onionvision.bat`](stop_onionvision.bat).
 
 ### Option B: Manual Terminal Execution
 
