@@ -4,6 +4,7 @@ import { ThemeProvider } from './hooks/useTheme';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AppLayout } from './components/layout/AppLayout';
+import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { Dashboard } from './pages/Dashboard';
@@ -22,6 +23,9 @@ export const App: React.FC = () => {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
+            {/* Public Landing Page */}
+            <Route path="/" element={<Landing />} />
+
             {/* Public Authentication Pages */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
@@ -29,7 +33,8 @@ export const App: React.FC = () => {
             {/* Protected Application Workspace */}
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/app" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/new" element={<NewInspection />} />
                 <Route path="/inspections/:inspectionId" element={<InspectionAnalysis />} />
                 <Route path="/inspections/:inspectionId/results" element={<InspectionResults />} />

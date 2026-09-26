@@ -27,7 +27,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const getNavItems = () => {
     const role = user?.role || 'operator';
     return [
-      { to: '/', label: 'Overview', icon: LayoutDashboard },
+      { to: '/dashboard', label: 'Overview', icon: LayoutDashboard },
       { to: '/new', label: 'New Inspection', icon: ScanLine },
       {
         to: '/history',
@@ -69,7 +69,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === '/'}
+              end={item.to === '/dashboard'}
               onClick={onCloseMobile}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${

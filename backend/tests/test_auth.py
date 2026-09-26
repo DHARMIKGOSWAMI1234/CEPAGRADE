@@ -446,3 +446,29 @@ def test_invalid_token_cannot_access_protected_resources(unauthenticated_client:
     res3 = unauthenticated_client.get("/api/reports/INS-TEST-FAKE", headers={"Authorization": bad_token})
     assert res3.status_code == 401
 
+
+def test_demo_access_success_and_rate_limit(client: TestClient):
+    """Verifies that demo access succeeds for 2 attempts, then is rate-limited on 3rd attempt."""
+    dev_id = "test-device-uuid-12345"
+
+    # 1st attempt: should succeed
+    res1 = client.post("/api/auth/demo", json={"device_id": dev_id})
+    assert res1.status_code == 200
+    data1 = res1.json()
+    assert "access_token" in data1
+    assert data1["user"]["role"] == "operator"
+
+    # 2nd attempt: should succeed
+    res2 = client.post("/api/auth/demo", json={"device_id": dev_id})
+    assert res2.status_code == 200
+
+    # 3rd attempt: should return 429 Too Many Requests
+    res3 = client.post("/api/auth/demo", json={"device_id": dev_id})
+    assert res3.status_code == 429
+    assert "Demo access limit reached" in res3.json()["detail"]
+
+    # Different device ID should still succeed
+    res_other = client.post("/api/auth/demo", json={"device_id": "different-device-9999"})
+    assert res_other.status_code == 200
+
+

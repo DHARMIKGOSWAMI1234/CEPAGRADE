@@ -1,13 +1,15 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
-import { Mail, Shield, Calendar, LogOut, CheckCircle } from 'lucide-react';
+import { Mail, Shield, Calendar, LogOut, CheckCircle, RotateCcw, Sparkles } from 'lucide-react';
 
 export const Profile: React.FC = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   if (!user) return null;
 
@@ -138,6 +140,33 @@ export const Profile: React.FC = () => {
             </div>
           </Card>
         </div>
+
+        {/* Product Tour & Onboarding Card */}
+        <Card className="p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2 text-zinc-900 dark:text-zinc-100 font-semibold text-sm">
+                <Sparkles className="w-4 h-4 text-brand-500" />
+                <span>Product Tour & Guided Walkthrough</span>
+              </div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                Review the step-by-step tour explaining produce capture, YOLOv8 segmentation, morphometry analysis, and PDF report export.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                localStorage.removeItem('cepagrade_onboarding_completed');
+                navigate('/dashboard?tour=true');
+              }}
+              icon={<RotateCcw className="w-3.5 h-3.5" />}
+              className="shrink-0"
+            >
+              Restart Product Tour
+            </Button>
+          </div>
+        </Card>
 
       </div>
     </div>

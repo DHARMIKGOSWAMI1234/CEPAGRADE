@@ -7,6 +7,8 @@ import {
   sendPasswordResetEmail,
   updateProfile,
   onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
   type User as FirebaseUser,
 } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from '../lib/firebase';
@@ -169,6 +171,11 @@ interface AuthContextType {
   isSupabaseConfigured?: boolean;
   login: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  loginDemo: () => Promise<void>;
+  isDemoUser: boolean;
+  demoAttempts: number;
+  maxDemoAttempts: number;
   signup: (
     name: string,
     email: string,
@@ -223,7 +230,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
   const clearInfoMessage = useCallback(() => setInfoMessage(null), []);
 
-  const saveSession = useCallback((authToken: string, authUser: User) => {
+  const saveSession = useCallback((authToken: string, authUser: User, isDemo = false) => {
     setToken(authToken);
     setUser(authUser);
     localStorage.setItem('cepagrade_token', authToken);
@@ -231,13 +238,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Backwards-compatibility for existing backend API client interceptors
     localStorage.setItem('onionvision_token', authToken);
     localStorage.setItem('onionvision_user', JSON.stringify(authUser));
+    if (isDemo) {
+      localStorage.setItem('cepagrade_is_demo', 'true');
+      setIsDemoUser(true);
+    } else {
+      localStorage.removeItem('cepagrade_is_demo');
+      setIsDemoUser(false);
+    }
   }, []);
+
+  const [isDemoUser, setIsDemoUser] = useState<boolean>(() => {
+    return localStorage.getItem('cepagrade_is_demo') === 'true';
+  });
+
+  const [demoAttempts, setDemoAttempts] = useState<number>(() => {
+    return Number(localStorage.getItem('cepagrade_demo_attempts') || '0');
+  });
+
+  const maxDemoAttempts = 2;
 
   const clearSession = useCallback(() => {
     setToken(null);
     setUser(null);
+    setIsDemoUser(false);
     localStorage.removeItem('cepagrade_token');
     localStorage.removeItem('cepagrade_user');
+    localStorage.removeItem('cepagrade_is_demo');
     localStorage.removeItem('onionvision_token');
     localStorage.removeItem('onionvision_user');
   }, []);
@@ -401,6 +427,114 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     },
     [saveSession, clearSession]
   );
+
+  const loginWithGoogle = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    setErrorCode(null);
+    try {
+      if (!isFirebaseConfigured || !auth) {
+        const msg = 'Google sign-in is currently unavailable. Please use email and password.';
+        setError(msg);
+        setErrorCode('GENERIC_AUTH_ERROR');
+        throw new AuthError('GENERIC_AUTH_ERROR', msg);
+      }
+
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const userCredential = await signInWithPopup(auth, provider);
+      const fbUser = userCredential.user;
+      const idToken = await fbUser.getIdToken(true);
+      const authUser: User = {
+        id: fbUser.uid,
+        name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Operator',
+        email: fbUser.email || '',
+        role: 'operator',
+        emailVerified: true,
+        is_active: true,
+        created_at: fbUser.metadata.creationTime,
+      };
+      localStorage.removeItem('cepagrade_is_demo');
+      setIsDemoUser(false);
+      saveSession(idToken, authUser);
+    } catch (err: any) {
+      if (err instanceof AuthError) {
+        setError(err.message);
+        setErrorCode(err.code);
+        throw err;
+      }
+      if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
+        return;
+      }
+      const msg = 'Google sign-in is currently unavailable. Please use email and password.';
+      setError(msg);
+      setErrorCode('GENERIC_AUTH_ERROR');
+      throw new AuthError('GENERIC_AUTH_ERROR', msg);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [saveSession]);
+
+  const loginDemo = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    setErrorCode(null);
+    try {
+      const currentAttempts = Number(localStorage.getItem('cepagrade_demo_attempts') || '0');
+      if (currentAttempts >= maxDemoAttempts) {
+        const msg = 'Demo access limit reached. Create a free account to continue using CEPA GRADE.';
+        setError(msg);
+        setErrorCode('RATE_LIMIT');
+        throw new AuthError('RATE_LIMIT', msg);
+      }
+
+      let devId = localStorage.getItem('cepagrade_device_id');
+      if (!devId) {
+        devId = 'dev-' + Math.random().toString(36).substring(2, 15);
+        localStorage.setItem('cepagrade_device_id', devId);
+      }
+
+      const res = await authApi.demo(devId);
+      const newAttempts = currentAttempts + 1;
+      localStorage.setItem('cepagrade_demo_attempts', String(newAttempts));
+      setDemoAttempts(newAttempts);
+      localStorage.setItem('cepagrade_is_demo', 'true');
+      setIsDemoUser(true);
+
+      saveSession(
+        res.access_token,
+        {
+          id: String(res.user.id),
+          name: res.user.name,
+          email: res.user.email,
+          role: res.user.role,
+          emailVerified: true,
+          is_active: res.user.is_active,
+          created_at: res.user.created_at,
+        },
+        true
+      );
+    } catch (err: any) {
+      if (err instanceof AuthError) {
+        setError(err.message);
+        setErrorCode(err.code);
+        throw err;
+      }
+      const detail = err?.response?.data?.detail;
+      if (err?.response?.status === 429 || (detail && detail.includes('limit reached'))) {
+        const msg = 'Demo access limit reached. Create a free account to continue using CEPA GRADE.';
+        setError(msg);
+        setErrorCode('RATE_LIMIT');
+        throw new AuthError('RATE_LIMIT', msg);
+      }
+      const genericMsg = detail || 'Unable to start demo session. Please try again.';
+      setError(genericMsg);
+      setErrorCode('GENERIC_AUTH_ERROR');
+      throw new AuthError('GENERIC_AUTH_ERROR', genericMsg);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [saveSession, maxDemoAttempts]);
 
   const signup = useCallback(
     async (
@@ -633,6 +767,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isSupabaseConfigured: isFirebaseConfigured,
         login,
         signIn: login,
+        loginWithGoogle,
+        loginDemo,
+        isDemoUser,
+        demoAttempts,
+        maxDemoAttempts,
         signup,
         signUp: signup,
         resendVerificationEmail,

@@ -4,9 +4,13 @@ from app.core.deps import get_current_user
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.database import get_db
 from app.db.models import User
-from app.schemas.user import TokenResponse, UserCreate, UserLogin, UserResponse
+from app.schemas.user import DemoRequest, TokenResponse, UserCreate, UserLogin, UserResponse
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+DEMO_ATTEMPTS: dict[str, int] = {}
+MAX_DEMO_ATTEMPTS = 2
+
 
 
 @router.post(
@@ -39,7 +43,9 @@ def signup(
     db.commit()
     db.refresh(user)
 
-    token = create_access_token(data={"sub": str(user.id), "email": user.email, "role": user.role, "name": user.name})
+    token = create_access_token(
+        data={"sub": str(user.id), "email": user.email, "role": user.role, "name": user.name, "email_verified": True}
+    )
     return TokenResponse(
         access_token=token,
         token_type="bearer",
@@ -78,7 +84,9 @@ def login(
             detail="This account has been deactivated. Please contact your system administrator.",
         )
 
-    token = create_access_token(data={"sub": str(user.id), "email": user.email, "role": user.role, "name": user.name})
+    token = create_access_token(
+        data={"sub": str(user.id), "email": user.email, "role": user.role, "name": user.name, "email_verified": True}
+    )
     return TokenResponse(
         access_token=token,
         token_type="bearer",
@@ -107,3 +115,52 @@ def logout(
 ):
     """Logs out user session and confirms token invalidation on client side."""
     return {"status": "ok", "message": "Successfully logged out.", "user_id": current_user.id}
+
+
+@router.post(
+    "/demo",
+    response_model=TokenResponse,
+    summary="Issue demo session with rate-limiting",
+)
+def demo_access(
+    payload: DemoRequest,
+    db: Session = Depends(get_db),
+) -> TokenResponse:
+    """Provides temporary demo access for up to 2 attempts per browser/device."""
+    device_id = (payload.device_id or "").strip()
+    if not device_id:
+        device_id = "default_device"
+
+    count = DEMO_ATTEMPTS.get(device_id, 0)
+    if count >= MAX_DEMO_ATTEMPTS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Demo access limit reached. Create a free account to continue using CEPA GRADE.",
+        )
+
+    DEMO_ATTEMPTS[device_id] = count + 1
+
+    user = db.query(User).filter(User.email == "operator@cepagrade.ai").first()
+    if not user:
+        user = db.query(User).filter(User.email == "operator@onionvision.ai").first()
+    if not user:
+        user = User(
+            name="Head Operator",
+            email="operator@cepagrade.ai",
+            password_hash=hash_password("Operator123!"),
+            role="operator",
+            is_active=1,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    token = create_access_token(
+        data={"sub": str(user.id), "email": user.email, "role": user.role, "name": user.name, "email_verified": True}
+    )
+    return TokenResponse(
+        access_token=token,
+        token_type="bearer",
+        user=UserResponse.model_validate(user),
+    )
+

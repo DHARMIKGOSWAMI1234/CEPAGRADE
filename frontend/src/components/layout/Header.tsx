@@ -23,8 +23,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenMobileMenu,
 }) => {
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, isDemoUser } = useAuth();
   const isNewPage = location.pathname === '/new';
+  const isDemo = isDemoUser || user?.email === 'operator@cepagrade.ai';
 
   return (
     <header className="bg-white/90 dark:bg-[#0D0D0F]/90 backdrop-blur-md border-b border-zinc-200/90 dark:border-[#27272A] px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4 sticky top-0 z-20 shadow-soft-sm transition-colors duration-200">
@@ -66,12 +67,21 @@ export const Header: React.FC<HeaderProps> = ({
 
       <div className="flex items-center gap-2.5 shrink-0">
         {/* Compact System Status Pill */}
-        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-[#18181B] text-[11px] text-zinc-600 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-800">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="font-medium">System Online</span>
-          <span className="text-zinc-400 dark:text-zinc-600">•</span>
-          <span className="text-zinc-500 dark:text-zinc-400 font-mono text-[10px]">Ready</span>
-        </div>
+        {isDemo ? (
+          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/40 text-[11px] text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            <span className="font-medium">Local Demo</span>
+            <span className="text-zinc-400 dark:text-zinc-600">•</span>
+            <span className="font-mono text-[10px]">Session Active</span>
+          </div>
+        ) : (
+          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-[#18181B] text-[11px] text-zinc-600 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-medium">Connected</span>
+            <span className="text-zinc-400 dark:text-zinc-600">•</span>
+            <span className="text-zinc-500 dark:text-zinc-400 font-mono text-[10px]">Ready</span>
+          </div>
+        )}
 
         <ThemeToggle />
 

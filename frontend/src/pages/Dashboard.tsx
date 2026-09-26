@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import {
   Layers,
@@ -19,21 +19,40 @@ import { MetricCard } from '../components/common/MetricCard';
 import { RecentInspections } from '../components/dashboard/RecentInspections';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
-import { EmptyState } from '../components/common/EmptyState';
 import { Loading } from '../components/common/Loading';
 import { ErrorState } from '../components/common/ErrorState';
 import { GradeDistributionChart } from '../components/charts/GradeDistribution';
 import { QualityDistributionChart } from '../components/charts/QualityDistribution';
+import { OnboardingTutorial } from '../components/onboarding/OnboardingTutorial';
+import { DemoWelcomeModal } from '../components/onboarding/DemoWelcomeModal';
 import { useInspections } from '../hooks/useInspections';
 import { useAuth } from '../context/AuthContext';
 import { formatScore } from '../utils/formatters';
 import type { LayoutContextType } from '../components/layout/AppLayout';
+import { useSearchParams } from 'react-router-dom';
 
 export const Dashboard: React.FC = () => {
-  const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user, isDemoUser, demoAttempts, maxDemoAttempts } = useAuth();
   const navigate = useNavigate();
   const { inspections, loading, error, refetch, stats } = useInspections();
   const outletContext = useOutletContext<LayoutContextType | undefined>();
+
+  const isDemo = isDemoUser || user?.email === 'operator@cepagrade.ai';
+
+  // Onboarding tutorial state (auto-shown for genuine new permanent users or when ?tour=true)
+  const [showTutorial, setShowTutorial] = useState(() => {
+    if (isDemo) return false;
+    const tourParam = searchParams.get('tour') === 'true';
+    const completed = localStorage.getItem('cepagrade_onboarding_completed') === 'true';
+    return tourParam || !completed;
+  });
+
+  // Demo welcome modal state (shown on first entry to demo session)
+  const [showDemoWelcome, setShowDemoWelcome] = useState(() => {
+    if (!isDemo) return false;
+    return localStorage.getItem('cepagrade_demo_welcomed') !== 'true';
+  });
 
   // Aggregate quality and grade metrics from real historical database records
   const totalGradeDist = { A: 0, B: 0, C: 0, Reject: 0 };
@@ -194,14 +213,34 @@ export const Dashboard: React.FC = () => {
 
             {/* Historical Charts or Empty State */}
             {inspections.length === 0 ? (
-              <Card padding="lg">
-                <EmptyState
-                  icon={PackageOpen}
-                  title="No inspections yet"
-                  description="Start your first inspection to see results here. Capture or upload high-resolution produce images to run the 9-stage CV pipeline."
-                  actionText="+ Start New Inspection"
-                  onAction={() => navigate('/new')}
-                />
+              <Card padding="lg" className="border-brand-100 dark:border-brand-950/40">
+                <div className="py-10 px-4 text-center max-w-md mx-auto space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-brand-50 dark:bg-brand-950/40 border border-brand-200/80 dark:border-brand-900/60 text-brand-600 dark:text-brand-400 flex items-center justify-center mx-auto shadow-soft-sm">
+                    <PackageOpen className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+                      Welcome to CEPA GRADE
+                    </h2>
+                    <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                      No inspections yet.
+                    </p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                      Start your first inspection to begin.
+                    </p>
+                  </div>
+                  <div className="pt-2">
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={() => navigate('/new')}
+                      icon={<Plus className="w-4 h-4" />}
+                      className="font-semibold shadow-soft-sm"
+                    >
+                      Start New Inspection
+                    </Button>
+                  </div>
+                </div>
               </Card>
             ) : (
               <>
@@ -252,6 +291,28 @@ export const Dashboard: React.FC = () => {
           </div>
         )}
       </PageContainer>
+
+      {/* Guided First-Time Onboarding Tour */}
+      <OnboardingTutorial
+        isOpen={showTutorial}
+        onClose={() => {
+          setShowTutorial(false);
+          if (searchParams.has('tour')) {
+            searchParams.delete('tour');
+            setSearchParams(searchParams);
+          }
+        }}
+      />
+
+      {/* Lightweight Demo User Welcome Modal */}
+      <DemoWelcomeModal
+        isOpen={showDemoWelcome}
+        onClose={() => {
+          localStorage.setItem('cepagrade_demo_welcomed', 'true');
+          setShowDemoWelcome(false);
+        }}
+        attemptsRemaining={Math.max(0, maxDemoAttempts - demoAttempts)}
+      />
     </div>
   );
 };

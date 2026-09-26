@@ -80,3 +80,10 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+
+class DemoRequest(BaseModel):
+    """Schema for requesting a rate-limited temporary demo session."""
+
+    device_id: Optional[str] = Field(default=None, description="Client or browser device identifier")
+

@@ -52,4 +52,9 @@ export const authApi = {
       // Ignore network errors on logout
     }
   },
+
+  demo: async (deviceId?: string): Promise<AuthResponse> => {
+    const res = await apiClient.post<AuthResponse>('/api/auth/demo', { device_id: deviceId || '' });
+    return res.data;
+  },
 };
