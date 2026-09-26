@@ -191,9 +191,12 @@ export const Landing: React.FC = () => {
                 {/* Visual Header Toolbar */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="w-2 h-2 rounded-full bg-brand-500" />
                     <span className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
-                      Live Inspection Sample
+                      Example Inspection
+                    </span>
+                    <span className="hidden sm:inline text-[11px] text-zinc-400 font-normal">
+                      • Interface Preview
                     </span>
                   </div>
                   <div className="flex items-center space-x-1 bg-white dark:bg-[#18181B] p-1 rounded-lg border border-zinc-200 dark:border-zinc-800 text-[11px] font-medium">
@@ -226,9 +229,9 @@ export const Landing: React.FC = () => {
                   {activePreviewMode === 'original' && (
                     <div className="space-y-2 text-zinc-300">
                       <div className="w-20 h-28 mx-auto rounded-full bg-rose-950/80 border-2 border-rose-600/60 shadow-inner flex items-center justify-center">
-                        <span className="text-xs text-rose-200 font-mono">Bulb #1</span>
+                        <span className="text-xs text-rose-200 font-mono">Sample #1</span>
                       </div>
-                      <p className="text-xs text-zinc-400 font-mono">Original Optical Capture</p>
+                      <p className="text-xs text-zinc-400 font-mono">Example Optical Input</p>
                     </div>
                   )}
 
@@ -240,7 +243,7 @@ export const Landing: React.FC = () => {
                         </span>
                         <span className="text-xs text-emerald-200 font-mono">24.7 mm</span>
                       </div>
-                      <p className="text-xs text-emerald-400 font-mono">YOLOv8 Polygon Mask Localized</p>
+                      <p className="text-xs text-emerald-400 font-mono">YOLOv8 Segmentation Overlay</p>
                     </div>
                   )}
 
@@ -264,25 +267,29 @@ export const Landing: React.FC = () => {
                   )}
                 </div>
 
-                {/* Live Real Metrics Strip */}
+                {/* Illustrative Result Preview Metrics Strip */}
                 <div className="grid grid-cols-4 gap-2 text-center pt-1">
                   <div className="p-2 rounded-lg bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800/80">
-                    <p className="text-[10px] text-zinc-400 uppercase">Analyzed</p>
-                    <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200 font-mono">1 Unit</p>
+                    <p className="text-[10px] text-zinc-400 uppercase">Sample Count</p>
+                    <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200 font-mono">1 Bulb</p>
                   </div>
                   <div className="p-2 rounded-lg bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800/80">
-                    <p className="text-[10px] text-zinc-400 uppercase">Est. Size</p>
+                    <p className="text-[10px] text-zinc-400 uppercase">Sample Size</p>
                     <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200 font-mono">24.7 mm</p>
                   </div>
                   <div className="p-2 rounded-lg bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800/80">
-                    <p className="text-[10px] text-zinc-400 uppercase">Health</p>
+                    <p className="text-[10px] text-zinc-400 uppercase">Sample Health</p>
                     <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono">100%</p>
                   </div>
                   <div className="p-2 rounded-lg bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800/80">
-                    <p className="text-[10px] text-zinc-400 uppercase">Grade</p>
+                    <p className="text-[10px] text-zinc-400 uppercase">Sample Grade</p>
                     <p className="text-sm font-bold text-amber-600 dark:text-amber-400 font-mono">Grade C</p>
                   </div>
                 </div>
+
+                <p className="text-[10px] text-zinc-400 dark:text-zinc-500 text-center italic">
+                  * Illustrative interface preview. Actual measurements and AGMARK grades are computed dynamically upon batch ingestion.
+                </p>
 
               </div>
             </div>

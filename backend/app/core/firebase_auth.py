@@ -20,10 +20,13 @@ class AuthenticatedUser(BaseModel):
     email_verified: bool = True
     is_active: bool = True
     created_at: Optional[datetime] = None
+    int_id_override: Optional[int] = None
 
     @property
     def int_id(self) -> Optional[int]:
         """Provides backward-compatibility for legacy integer user IDs if applicable."""
+        if self.int_id_override is not None:
+            return self.int_id_override
         return int(self.id) if str(self.id).isdigit() else None
 
 

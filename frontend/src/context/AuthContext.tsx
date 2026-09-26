@@ -143,7 +143,53 @@ export const mapFirebaseAuthError = (err: any): { code: AuthErrorCode; message: 
     };
   }
 
-  // 8. Generic Auth Failure
+  // 8. Google Sign-In & Popup Specific Errors
+  if (
+    code === 'auth/popup-closed-by-user' ||
+    code === 'auth/cancelled-popup-request' ||
+    msg.includes('popup-closed') ||
+    msg.includes('cancelled-popup')
+  ) {
+    return {
+      code: 'GENERIC_AUTH_ERROR',
+      message: 'Google sign-in was cancelled.',
+    };
+  }
+
+  if (code === 'auth/popup-blocked' || msg.includes('popup-blocked')) {
+    return {
+      code: 'GENERIC_AUTH_ERROR',
+      message: 'Your browser blocked the Google sign-in window. Please allow popups and try again.',
+    };
+  }
+
+  if (code === 'auth/unauthorized-domain' || msg.includes('unauthorized-domain')) {
+    return {
+      code: 'GENERIC_AUTH_ERROR',
+      message: 'Google sign-in is not available for this website domain yet.',
+    };
+  }
+
+  if (code === 'auth/operation-not-allowed' || msg.includes('operation-not-allowed')) {
+    return {
+      code: 'GENERIC_AUTH_ERROR',
+      message: 'Google sign-in provider is not enabled in Firebase Console.',
+    };
+  }
+
+  if (
+    code === 'auth/configuration-not-found' ||
+    code === 'auth/invalid-api-key' ||
+    code === 'auth/invalid-oauth-client-id' ||
+    msg.includes('configuration-not-found')
+  ) {
+    return {
+      code: 'GENERIC_AUTH_ERROR',
+      message: 'Google sign-in is temporarily unavailable. Please use email and password.',
+    };
+  }
+
+  // 9. Generic Auth Failure
   return {
     code: 'GENERIC_AUTH_ERROR',
     message: 'Authentication service temporarily unavailable. Please try again later.',
@@ -355,35 +401,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (isFirebaseConfigured && auth) {
-          // Real Firebase Auth login
-          const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
-          const fbUser = userCredential.user;
+          try {
+            // Real Firebase Auth login
+            const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+            const fbUser = userCredential.user;
 
-          // Reload user to ensure latest emailVerified status
-          await fbUser.reload();
+            // Reload user to ensure latest emailVerified status
+            await fbUser.reload();
 
-          if (!fbUser.emailVerified) {
-            // Sign out of client session immediately to prevent unverified access
-            await firebaseSignOut(auth).catch(() => {});
-            clearSession();
-            throw new AuthError(
-              'EMAIL_NOT_CONFIRMED',
-              'Please verify your email before accessing CEPA GRADE.'
-            );
+            if (!fbUser.emailVerified) {
+              // Sign out of client session immediately to prevent unverified access
+              await firebaseSignOut(auth).catch(() => {});
+              clearSession();
+              throw new AuthError(
+                'EMAIL_NOT_CONFIRMED',
+                'Please verify your email before accessing CEPA GRADE.'
+              );
+            }
+
+            // Retrieve verified Firebase ID Token
+            const idToken = await fbUser.getIdToken(/* forceRefresh */ true);
+            const authUser: User = {
+              id: fbUser.uid,
+              name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Operator',
+              email: fbUser.email || email,
+              role: 'operator',
+              emailVerified: true,
+              is_active: true,
+              created_at: fbUser.metadata.creationTime,
+            };
+            saveSession(idToken, authUser);
+            return;
+          } catch (fbErr: any) {
+            if (fbErr instanceof AuthError && fbErr.code === 'EMAIL_NOT_CONFIRMED') {
+              throw fbErr;
+            }
+            // If Firebase login failed (e.g. user-not-found, invalid-credential), check local backend auth
+            try {
+              const res = await authApi.login({ email: email.trim(), password });
+              saveSession(res.access_token, {
+                id: String(res.user.id),
+                name: res.user.name,
+                email: res.user.email,
+                role: res.user.role,
+                emailVerified: true,
+                is_active: res.user.is_active,
+                created_at: res.user.created_at,
+              });
+              return;
+            } catch (apiErr: any) {
+              const detail = apiErr?.response?.data?.detail;
+              if (
+                detail?.toLowerCase().includes('credential') ||
+                detail?.toLowerCase().includes('password')
+              ) {
+                throw new AuthError('INVALID_CREDENTIALS', 'Incorrect email or password.');
+              }
+              const mapped = mapFirebaseAuthError(fbErr);
+              throw new AuthError(mapped.code, mapped.message);
+            }
           }
-
-          // Retrieve verified Firebase ID Token
-          const idToken = await fbUser.getIdToken(/* forceRefresh */ true);
-          const authUser: User = {
-            id: fbUser.uid,
-            name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Operator',
-            email: fbUser.email || email,
-            role: 'operator',
-            emailVerified: true,
-            is_active: true,
-            created_at: fbUser.metadata.creationTime,
-          };
-          saveSession(idToken, authUser);
         } else {
           // Fallback to local FastAPI development auth (offline mode only)
           try {
@@ -463,13 +540,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setErrorCode(err.code);
         throw err;
       }
-      if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
-        return;
-      }
-      const msg = 'Google sign-in is currently unavailable. Please use email and password.';
-      setError(msg);
-      setErrorCode('GENERIC_AUTH_ERROR');
-      throw new AuthError('GENERIC_AUTH_ERROR', msg);
+      const mapped = mapFirebaseAuthError(err);
+      setError(mapped.message);
+      setErrorCode(mapped.code);
+      throw new AuthError(mapped.code, mapped.message);
     } finally {
       setIsLoading(false);
     }

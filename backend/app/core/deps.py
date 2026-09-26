@@ -44,18 +44,35 @@ def get_current_user(
     user = verify_firebase_token(token, require_email_verified=True)
 
     # Optional local user record sync / check if exists
+    db_user = None
     if user.int_id is not None:
         db_user = db.query(User).filter(User.id == user.int_id).first()
-        if db_user:
-            if not db_user.is_active:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="User account is deactivated.",
-                )
-            if db_user.name and (not user.name or user.name == "Operator" or user.name == user.email.split("@")[0]):
-                user.name = db_user.name
-            if db_user.created_at:
-                user.created_at = db_user.created_at
+    elif user.email:
+        db_user = db.query(User).filter(User.email == user.email).first()
+        if not db_user:
+            from app.core.security import hash_password
+            db_user = User(
+                name=user.name or user.email.split("@")[0],
+                email=user.email,
+                password_hash=hash_password("firebase_google_oauth_managed"),
+                role=user.role or "operator",
+                is_active=1,
+            )
+            db.add(db_user)
+            db.commit()
+            db.refresh(db_user)
+
+    if db_user:
+        if not db_user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User account is deactivated.",
+            )
+        user.int_id_override = db_user.id
+        if db_user.name and (not user.name or user.name == "Operator" or user.name == user.email.split("@")[0]):
+            user.name = db_user.name
+        if db_user.created_at:
+            user.created_at = db_user.created_at
 
     return user
 
