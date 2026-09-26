@@ -343,19 +343,20 @@ class RealCVPipeline:
 
             # Combine explainable reasons
             all_reasons = []
-            if quality_class == "Healthy":
+            all_reasons.extend(grade_res.reasons)
+            if quality_class == "Healthy" and not any("Healthy" in r for r in all_reasons):
                 all_reasons.append("Healthy classification with high confidence.")
-            else:
+            elif quality_class != "Healthy" and not any("Unhealthy" in r or "defect" in r.lower() for r in all_reasons):
                 all_reasons.append("Grade reduced because health classification was Unhealthy.")
 
-            if size_mm is not None:
-                all_reasons.append(f"Calibrated size estimated at {size_mm:.1f} mm.")
-            else:
-                all_reasons.append("Physical size unavailable because calibration reference was not configured.")
-
-            all_reasons.extend(conf_assessment.reasons)
+            for cr in conf_assessment.reasons:
+                if cr not in all_reasons:
+                    all_reasons.append(cr)
 
             needs_review = conf_assessment.review_status != "AUTO_ACCEPTABLE" or grade_res.needs_review
+
+            morph_dict = morph.to_dict()
+            morph_dict["grading_breakdown"] = grade_res.breakdown
 
             processed_onion = ProcessedOnionInstance(
                 onion_number=idx + 1,
@@ -375,7 +376,7 @@ class RealCVPipeline:
                 needs_review=needs_review,
                 reasons=all_reasons,
                 bbox=inst.bbox,
-                morphometry=morph.to_dict(),
+                morphometry=morph_dict,
                 polygon=crop_result.polygon,
             )
             processed_onions.append(processed_onion)

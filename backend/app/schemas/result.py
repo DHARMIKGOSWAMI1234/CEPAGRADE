@@ -12,12 +12,14 @@ class OnionResultBase(BaseModel):
     grade: Optional[str] = Field(default=None, description="Prototype grade (e.g., A, B, C, Reject)")
     confidence: Optional[float] = Field(default=None, description="Model prediction confidence score [0.0 - 1.0]")
     defect_area: Optional[float] = Field(default=None, description="Visible defect area in mm² or pixels")
+    quality_score: Optional[float] = Field(default=None, description="Calculated instance quality score [0.0 - 100.0]")
 
     # Rich explainable evaluation metadata
     variety: Optional[str] = Field(default=None, description="Identified onion variety (Red, Yellow, etc.)")
     review_status: Optional[str] = Field(default=None, description="Review flag (AUTO_ACCEPTABLE, REVIEW_RECOMMENDED, etc.)")
     needs_review: Optional[bool] = Field(default=None, description="Boolean flag if review is recommended")
     reasons: Optional[List[str]] = Field(default=None, description="Transparent grading explanation reasons")
+    breakdown: Optional[Dict[str, Any]] = Field(default=None, description="Structured explainability breakdown across size, health, defects, and final score")
     morphometry: Optional[Dict[str, Any]] = Field(default=None, description="Geometric measurements (area, perimeter, circularity, etc.)")
     bbox: Optional[List[int]] = Field(default=None, description="Bounding box [xmin, ymin, xmax, ymax]")
     polygon: Optional[List[List[float]]] = Field(default=None, description="Contour polygon coordinates")

@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -38,6 +38,7 @@ class OnionGradeResult:
     reasons: List[str] = field(default_factory=list)
     needs_review: bool = False
     disclaimer: str = ""
+    breakdown: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -78,58 +79,100 @@ class GradingService:
         needs_review = False
 
         # 1. Prediction Confidence Evaluation
+        conf_impact = 0.0
+        conf_rule = f">= {self.config.confidence_review_threshold:.2f}"
+        conf_result = "Acceptable prediction confidence."
         if confidence is not None:
             if confidence < self.config.confidence_review_threshold:
                 needs_review = True
-                reasons.append(
-                    f"Low prediction confidence ({confidence:.2f} < {self.config.confidence_review_threshold:.2f}); manual review recommended."
-                )
-                score -= 15.0
+                conf_impact = -15.0
+                conf_rule = f"< {self.config.confidence_review_threshold:.2f}"
+                conf_result = f"Low prediction confidence ({confidence:.2f} < {self.config.confidence_review_threshold:.2f}); manual review recommended."
+                reasons.append(conf_result)
+                score += conf_impact
         else:
-            reasons.append("No prediction confidence score provided.")
+            conf_rule = "None provided"
+            conf_result = "No prediction confidence score provided."
+            reasons.append(conf_result)
 
         # 2. Defect / Quality Class Evaluation
         is_defective = False
+        health_impact = 0.0
+        health_result = "Quality class not specified."
         if quality_class:
             q_lower = quality_class.lower()
             if any(term in q_lower for term in ["bad", "defect", "rot", "damaged", "unhealthy", "reject"]):
                 is_defective = True
-                score -= 40.0
-                reasons.append(f"Visual quality issue detected: '{quality_class}'.")
+                health_impact = -40.0
+                score += health_impact
+                health_result = f"Visual quality issue detected: '{quality_class}'."
+                reasons.append(health_result)
             elif any(term in q_lower for term in ["good", "healthy", "sound", "fresh"]):
-                reasons.append(f"Healthy visual appearance: '{quality_class}'.")
+                health_result = f"Healthy visual appearance: '{quality_class}'."
+                reasons.append(health_result)
             else:
-                reasons.append(f"Quality class identified: '{quality_class}'.")
+                health_result = f"Quality class identified: '{quality_class}'."
+                reasons.append(health_result)
 
         # 3. Defect Area Evaluation
+        defect_impact = 0.0
+        defect_rule = f"<= {self.config.defect_area_max_a:.1f}%"
+        defect_result = "Negligible surface defect."
         if defect_area is not None:
             if defect_area > self.config.defect_area_max_c:
-                score -= 50.0
-                reasons.append(f"Severe defect surface area ({defect_area:.1f}%).")
+                defect_impact = -50.0
+                defect_rule = f"> {self.config.defect_area_max_c:.1f}%"
+                defect_result = f"Severe defect surface area ({defect_area:.1f}%)."
             elif defect_area > self.config.defect_area_max_b:
-                score -= 30.0
-                reasons.append(f"Moderate defect surface area ({defect_area:.1f}%).")
+                defect_impact = -30.0
+                defect_rule = f"> {self.config.defect_area_max_b:.1f}%"
+                defect_result = f"Moderate defect surface area ({defect_area:.1f}%)."
             elif defect_area > self.config.defect_area_max_a:
-                score -= 15.0
-                reasons.append(f"Minor visible surface markings ({defect_area:.1f}%).")
+                defect_impact = -15.0
+                defect_rule = f"> {self.config.defect_area_max_a:.1f}%"
+                defect_result = f"Minor visible surface markings ({defect_area:.1f}%)."
             else:
-                reasons.append(f"Negligible surface defect ({defect_area:.1f}%).")
+                defect_impact = 0.0
+                defect_rule = f"<= {self.config.defect_area_max_a:.1f}%"
+                defect_result = f"Negligible surface defect ({defect_area:.1f}%)."
+            score += defect_impact
+            reasons.append(defect_result)
+        else:
+            defect_rule = "None provided"
+            defect_result = "Defect area not measured."
 
         # 4. Physical Size Evaluation (if calibrated size available)
+        size_impact = 0.0
+        size_rule = f"{self.config.size_min_grade_a_mm:.1f} - {self.config.size_max_grade_a_mm:.1f} mm"
+        size_result = "Optimal diameter within Grade A range."
         if size_mm is not None:
             if self.config.size_min_grade_a_mm <= size_mm <= self.config.size_max_grade_a_mm:
-                reasons.append(f"Optimal diameter ({size_mm:.1f} mm) within Grade A range.")
+                size_impact = 0.0
+                size_rule = f"{self.config.size_min_grade_a_mm:.1f} <= size <= {self.config.size_max_grade_a_mm:.1f} mm"
+                size_result = f"Optimal diameter ({size_mm:.1f} mm) within Grade A range."
+                reasons.append(size_result)
             elif self.config.size_min_grade_b_mm <= size_mm <= self.config.size_max_grade_b_mm:
-                score -= 10.0
-                reasons.append(f"Acceptable diameter ({size_mm:.1f} mm) within Grade B range.")
+                size_impact = -10.0
+                size_rule = f"{self.config.size_min_grade_b_mm:.1f} <= size <= {self.config.size_max_grade_b_mm:.1f} mm"
+                size_result = f"Acceptable diameter ({size_mm:.1f} mm) within Grade B range."
+                score += size_impact
+                reasons.append(size_result)
             elif self.config.size_min_grade_c_mm <= size_mm <= self.config.size_max_grade_c_mm:
-                score -= 25.0
-                reasons.append(f"Marginal diameter ({size_mm:.1f} mm) within Grade C range.")
+                size_impact = -25.0
+                size_rule = f"{self.config.size_min_grade_c_mm:.1f} <= size <= {self.config.size_max_grade_c_mm:.1f} mm"
+                size_result = f"Marginal diameter ({size_mm:.1f} mm) within Grade C range."
+                score += size_impact
+                reasons.append(size_result)
             else:
-                score -= 45.0
-                reasons.append(f"Non-standard diameter ({size_mm:.1f} mm) outside typical sizing brackets.")
+                size_impact = -45.0
+                size_rule = f"size < {self.config.size_min_grade_c_mm:.1f} mm or size > {self.config.size_max_grade_c_mm:.1f} mm"
+                size_result = f"Non-standard diameter ({size_mm:.1f} mm) outside typical sizing brackets."
+                score += size_impact
+                reasons.append(size_result)
         else:
-            reasons.append("Physical size calibration not available; grade estimated on visual quality alone.")
+            size_rule = "Uncalibrated"
+            size_result = "Physical size calibration not available; grade estimated on visual quality alone."
+            reasons.append(size_result)
 
         # Ensure score stays in bounds [0, 100]
         score = max(0.0, min(100.0, score))
@@ -137,12 +180,51 @@ class GradingService:
         # 5. Deterministic Grade Mapping
         if score >= 85.0 and not is_defective:
             grade = "Grade A"
+            grade_rule = "score >= 85.0 and not defective"
         elif score >= 65.0:
             grade = "Grade B"
+            grade_rule = "65.0 <= score < 85.0 (or defective capped at Grade B)"
         elif score >= 45.0:
             grade = "Grade C"
+            grade_rule = "45.0 <= score < 65.0"
         else:
             grade = "Reject"
+            grade_rule = "score < 45.0"
+
+        # 6. Structured Explainable Breakdown
+        breakdown = {
+            "size": {
+                "value_mm": size_mm,
+                "rule": size_rule,
+                "result": size_result,
+                "score_impact": size_impact,
+            },
+            "health": {
+                "classification": quality_class,
+                "confidence": confidence,
+                "result": health_result,
+                "score_impact": health_impact,
+                "is_defective": is_defective,
+            },
+            "defects": {
+                "defect_area_pct": defect_area,
+                "rule": defect_rule,
+                "result": defect_result,
+                "score_impact": defect_impact,
+            },
+            "confidence": {
+                "value": confidence,
+                "rule": conf_rule,
+                "result": conf_result,
+                "score_impact": conf_impact,
+                "needs_review": needs_review,
+            },
+            "final": {
+                "quality_score": round(score, 1),
+                "grade": grade,
+                "rule": grade_rule,
+            },
+        }
 
         return OnionGradeResult(
             grade=grade,
@@ -150,6 +232,7 @@ class GradingService:
             reasons=reasons,
             needs_review=needs_review,
             disclaimer=self.config.disclaimer,
+            breakdown=breakdown,
         )
 
     def grade_batch(self, onions: List[Dict]) -> BatchGradingSummary:

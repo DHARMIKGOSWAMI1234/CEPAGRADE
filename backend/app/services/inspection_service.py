@@ -250,6 +250,24 @@ class InspectionService:
         crop_url = f"/api/inspections/{o.inspection_id}/onions/{o.onion_number}/crop" if crop_file.exists() else None
         mask_url = f"/api/inspections/{o.inspection_id}/onions/{o.onion_number}/mask" if mask_file.exists() else None
 
+        # Resolve explainability breakdown and instance quality score
+        breakdown = morphometry.get("grading_breakdown") if isinstance(morphometry, dict) else None
+        quality_score = None
+        if breakdown and isinstance(breakdown, dict) and "final" in breakdown:
+            quality_score = breakdown["final"].get("quality_score")
+
+        if quality_score is None:
+            from app.services.grading_service import grading_service
+            grade_res = grading_service.grade_onion(
+                size_mm=o.size_mm,
+                quality_class=o.quality_class,
+                defect_area=o.defect_area,
+                confidence=o.confidence,
+            )
+            quality_score = grade_res.quality_score
+            if not breakdown:
+                breakdown = grade_res.breakdown
+
         return OnionResultResponse(
             id=o.id,
             onion_number=o.onion_number,
@@ -258,6 +276,8 @@ class InspectionService:
             grade=o.grade,
             confidence=o.confidence,
             defect_area=o.defect_area,
+            quality_score=quality_score,
+            breakdown=breakdown,
             variety=getattr(o, "variety", None) or "Onion",
             review_status=getattr(o, "review_status", None) or "AUTO_ACCEPTABLE",
             needs_review=bool(getattr(o, "needs_review", 0)),
