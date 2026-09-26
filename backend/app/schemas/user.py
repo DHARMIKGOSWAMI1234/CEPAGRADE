@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
@@ -64,12 +64,12 @@ class UserLogin(BaseModel):
 class UserResponse(BaseModel):
     """Safe public user representation (never exposing password hash)."""
 
-    id: int
+    id: Union[int, str]
     name: str
     email: str
     role: str
     is_active: bool
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -28,6 +28,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
     """Encode a JWT access token with user claims and expiration timestamp."""
     to_encode = data.copy()
+    if "email_verified" not in to_encode:
+        to_encode["email_verified"] = True
     now = datetime.now(timezone.utc)
     if expires_delta:
         expire = now + expires_delta

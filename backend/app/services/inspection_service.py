@@ -109,6 +109,7 @@ class InspectionService:
         file: UploadFile,
         auto_process: bool = False,
         known_reference_diameter_mm: Optional[float] = None,
+        owner_id: Optional[str] = None,
         user_id: Optional[int] = None,
     ) -> InspectionUploadResponse:
         """
@@ -126,12 +127,16 @@ class InspectionService:
             ext=ext,
         )
 
+        resolved_owner = str(owner_id) if owner_id is not None else None
+        resolved_user = user_id if user_id is not None else (int(owner_id) if owner_id and str(owner_id).isdigit() else None)
+
         # Insert DB record
         record = Inspection(
             inspection_id=inspection_id,
             image_path=str(saved_path),
             status="pending",
-            user_id=user_id,
+            owner_id=resolved_owner,
+            user_id=resolved_user,
         )
         db.add(record)
         db.commit()
@@ -268,19 +273,52 @@ class InspectionService:
             created_at=o.created_at,
         )
 
+    def verify_inspection_ownership(
+        self,
+        inspection: Inspection,
+        user_id: Optional[str] = None,
+        role: Optional[str] = None,
+    ) -> None:
+        """Enforces that an inspection can only be accessed by its owner or by admin/supervisor."""
+        if not user_id:
+            return
+        if role in ["admin", "supervisor"]:
+            return
+        # Legacy unassigned inspections (owner_id is None and user_id is None) are safely accessible
+        if inspection.owner_id is None and inspection.user_id is None:
+            return
+        # Check owner_id match
+        if inspection.owner_id and str(inspection.owner_id) == str(user_id):
+            return
+        # Check user_id match
+        if inspection.user_id is not None and str(inspection.user_id) == str(user_id):
+            return
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: You do not own this inspection.",
+        )
+
     def list_inspections(
         self,
         db: Session,
         skip: int = 0,
         limit: int = 50,
+        owner_id: Optional[str] = None,
         user_id: Optional[int] = None,
         role: Optional[str] = None,
     ) -> List[InspectionSummary]:
         """Lists recent inspections ordered chronologically descending, respecting role-aware user scoping."""
         query = db.query(Inspection)
-        if user_id is not None and role not in ["admin", "supervisor"]:
-            from sqlalchemy import or_
-            query = query.filter(or_(Inspection.user_id == user_id, Inspection.user_id.is_(None)))
+        current_owner = owner_id or (str(user_id) if user_id is not None else None)
+        if current_owner is not None and role not in ["admin", "supervisor"]:
+            from sqlalchemy import or_, and_
+            query = query.filter(
+                or_(
+                    Inspection.owner_id == current_owner,
+                    Inspection.user_id == user_id if user_id is not None else False,
+                    and_(Inspection.owner_id.is_(None), Inspection.user_id.is_(None)),
+                )
+            )
         records = (
             query.order_by(Inspection.created_at.desc())
             .offset(skip)
@@ -294,7 +332,13 @@ class InspectionService:
             summaries.append(summary)
         return summaries
 
-    def get_inspection(self, db: Session, inspection_id: str) -> InspectionDetailResponse:
+    def get_inspection(
+        self,
+        db: Session,
+        inspection_id: str,
+        user_id: Optional[str] = None,
+        role: Optional[str] = None,
+    ) -> InspectionDetailResponse:
         """Retrieves a single complete inspection record."""
         record = (
             db.query(Inspection)
@@ -306,6 +350,7 @@ class InspectionService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Inspection with ID '{inspection_id}' not found.",
             )
+        self.verify_inspection_ownership(record, user_id=user_id, role=role)
 
         # Aggregate grade distribution dynamically from onion results if any exist
         distribution = {"A": 0, "B": 0, "C": 0, "Reject": 0}
@@ -338,7 +383,13 @@ class InspectionService:
             onions=[self._format_onion(o) for o in record.onions],
         )
 
-    def get_inspection_results(self, db: Session, inspection_id: str) -> List[OnionResultResponse]:
+    def get_inspection_results(
+        self,
+        db: Session,
+        inspection_id: str,
+        user_id: Optional[str] = None,
+        role: Optional[str] = None,
+    ) -> List[OnionResultResponse]:
         """Retrieves onion-level results for an inspection, raising 404 if inspection doesn't exist."""
         record = (
             db.query(Inspection)
@@ -350,6 +401,7 @@ class InspectionService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Inspection with ID '{inspection_id}' not found.",
             )
+        self.verify_inspection_ownership(record, user_id=user_id, role=role)
         return [self._format_onion(o) for o in record.onions]
 
     def get_single_onion_result(self, db: Session, inspection_id: str, onion_number: int) -> OnionResultResponse:

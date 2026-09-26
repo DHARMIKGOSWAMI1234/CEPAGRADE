@@ -133,7 +133,7 @@ export const Profile: React.FC = () => {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-zinc-500 dark:text-zinc-400">Security Standard:</span>
-                <span className="font-mono text-xs text-zinc-700 dark:text-zinc-300">Supabase Auth (JWT)</span>
+                <span className="font-mono text-xs text-zinc-700 dark:text-zinc-300">Firebase Auth (ID Token)</span>
               </div>
             </div>
           </Card>

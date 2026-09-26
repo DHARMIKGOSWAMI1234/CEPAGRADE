@@ -39,7 +39,7 @@ def signup(
     db.commit()
     db.refresh(user)
 
-    token = create_access_token(data={"sub": str(user.id), "email": user.email, "role": user.role})
+    token = create_access_token(data={"sub": str(user.id), "email": user.email, "role": user.role, "name": user.name})
     return TokenResponse(
         access_token=token,
         token_type="bearer",
@@ -78,7 +78,7 @@ def login(
             detail="This account has been deactivated. Please contact your system administrator.",
         )
 
-    token = create_access_token(data={"sub": str(user.id), "email": user.email, "role": user.role})
+    token = create_access_token(data={"sub": str(user.id), "email": user.email, "role": user.role, "name": user.name})
     return TokenResponse(
         access_token=token,
         token_type="bearer",

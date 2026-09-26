@@ -32,6 +32,10 @@ backend/.venv/
 .env.local
 .env.*.local
 *.env
+*firebase*.json
+*service-account*.json
+*service_account*.json
+serviceAccountKey.json
 
 # SQLite Database
 *.db

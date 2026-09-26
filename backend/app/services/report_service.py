@@ -26,7 +26,12 @@ class ReportService:
             )
 
     def generate_inspection_report(
-        self, db: Session, inspection_id: str, force_regenerate: bool = False
+        self,
+        db: Session,
+        inspection_id: str,
+        force_regenerate: bool = False,
+        user_id: Optional[str] = None,
+        role: Optional[str] = None,
     ) -> ReportResponse:
         """
         Generates or retrieves a formatted inspection report.
@@ -45,6 +50,19 @@ class ReportService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Inspection with ID '{inspection_id}' not found.",
             )
+
+        # Enforce inspection report ownership
+        if user_id is not None and role not in ["admin", "supervisor"]:
+            if record.owner_id is not None and str(record.owner_id) != str(user_id):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: You do not own this inspection report.",
+                )
+            if record.user_id is not None and str(record.user_id) != str(user_id) and record.owner_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: You do not own this inspection report.",
+                )
 
         # Check if inspection is pending execution
         if record.status == "pending":
@@ -115,7 +133,13 @@ class ReportService:
             file_size_bytes=file_size,
         )
 
-    def get_report_pdf_file(self, db: Session, inspection_id: str) -> Tuple[Path, str]:
+    def get_report_pdf_file(
+        self,
+        db: Session,
+        inspection_id: str,
+        user_id: Optional[str] = None,
+        role: Optional[str] = None,
+    ) -> Tuple[Path, str]:
         """
         Retrieves the generated PDF file path and download filename.
         Generates the PDF if not already present.
@@ -132,6 +156,19 @@ class ReportService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Inspection with ID '{inspection_id}' not found.",
             )
+
+        # Enforce inspection report ownership
+        if user_id is not None and role not in ["admin", "supervisor"]:
+            if record.owner_id is not None and str(record.owner_id) != str(user_id):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: You do not own this inspection report.",
+                )
+            if record.user_id is not None and str(record.user_id) != str(user_id) and record.owner_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: You do not own this inspection report.",
+                )
 
         if record.status == "pending":
             raise HTTPException(

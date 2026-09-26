@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from app.core.config import settings
+from app.core.firebase_auth import create_test_token
 from app.db.database import Base, get_db
 from app.main import app
 
@@ -47,8 +48,20 @@ def db_session() -> Generator[Session, None, None]:
 
 
 @pytest.fixture
-def client(db_session: Session) -> Generator[TestClient, None, None]:
-    """Test client with database dependency overridden to test DB session."""
+def test_user_token() -> str:
+    """Generates a valid signed JWT test token for a standard operator."""
+    return create_test_token(
+        user_id="test-operator-uid-1",
+        email="operator1@cepagrade.ai",
+        role="operator",
+        name="Test Operator One",
+        expires_in_seconds=3600,
+    )
+
+
+@pytest.fixture
+def unauthenticated_client(db_session: Session) -> Generator[TestClient, None, None]:
+    """Test client without default authentication headers."""
     def override_get_db():
         try:
             yield db_session
@@ -57,6 +70,22 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
 
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def client(db_session: Session, test_user_token: str) -> Generator[TestClient, None, None]:
+    """Test client with database dependency overridden and authenticated Bearer token."""
+    def override_get_db():
+        try:
+            yield db_session
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as test_client:
+        test_client.headers["Authorization"] = f"Bearer {test_user_token}"
         yield test_client
     app.dependency_overrides.clear()
 

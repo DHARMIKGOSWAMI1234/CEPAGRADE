@@ -1,89 +1,89 @@
 from typing import Optional
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
-from app.core.security import decode_access_token
+from app.core.firebase_auth import AuthenticatedUser, verify_firebase_token
 from app.db.database import get_db
 from app.db.models import User
 
-# HTTP Bearer scheme with auto_error=False for flexible handling
-bearer_scheme = HTTPBearer(auto_error=False)
-
 
 def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+    request: Request,
     db: Session = Depends(get_db),
-) -> User:
+) -> AuthenticatedUser:
     """
-    Strict dependency enforcing authenticated user presence via Bearer token.
-    Raises 401 if missing, invalid, or user inactive.
+    Strict FastAPI dependency enforcing authenticated user presence via Bearer token.
+    Extracts and cryptographically validates Firebase ID token.
+    Enforces email verification (HTTP 403 if unverified).
+    Raises HTTP 401 on missing, malformed, expired, or invalid token.
     """
-    if not credentials or not credentials.credentials:
+    auth_header = request.headers.get("Authorization")
+    token: Optional[str] = None
+
+    if auth_header:
+        parts = auth_header.strip().split()
+        if len(parts) != 2 or parts[0].lower() != "bearer" or not parts[1].strip():
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Malformed Authorization header. Required format: 'Bearer <token>'.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        token = parts[1].strip()
+    else:
+        # Check query parameter for browser media downloads (e.g., PDF reports)
+        query_token = request.query_params.get("token")
+        if query_token and query_token.strip():
+            token = query_token.strip()
+
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required. Please provide a valid Bearer token.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    token = credentials.credentials
-    payload = decode_access_token(token)
-    if not payload or "sub" not in payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired access token. Please sign in again.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    user = verify_firebase_token(token, require_email_verified=True)
 
-    try:
-        user_id = int(payload["sub"])
-    except (ValueError, TypeError):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Malformed token claims.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User account no longer exists.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is deactivated.",
-        )
+    # Optional local user record sync / check if exists
+    if user.int_id is not None:
+        db_user = db.query(User).filter(User.id == user.int_id).first()
+        if db_user:
+            if not db_user.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="User account is deactivated.",
+                )
+            if db_user.name and (not user.name or user.name == "Operator" or user.name == user.email.split("@")[0]):
+                user.name = db_user.name
+            if db_user.created_at:
+                user.created_at = db_user.created_at
 
     return user
 
 
 def get_current_user_optional(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+    request: Request,
     db: Session = Depends(get_db),
-) -> Optional[User]:
+) -> Optional[AuthenticatedUser]:
     """
-    Permissive dependency returning authenticated User if valid token is provided,
+    Permissive dependency returning AuthenticatedUser if valid token is provided,
     or None if unauthenticated. Never raises 401/403.
-    Enables backward compatibility for unauthenticated integration tests and public endpoints.
     """
-    if not credentials or not credentials.credentials:
-        return None
+    auth_header = request.headers.get("Authorization")
+    token: Optional[str] = None
 
-    token = credentials.credentials
-    payload = decode_access_token(token)
-    if not payload or "sub" not in payload:
+    if auth_header:
+        parts = auth_header.strip().split()
+        if len(parts) == 2 and parts[0].lower() == "bearer" and parts[1].strip():
+            token = parts[1].strip()
+    else:
+        query_token = request.query_params.get("token")
+        if query_token and query_token.strip():
+            token = query_token.strip()
+
+    if not token:
         return None
 
     try:
-        user_id = int(payload["sub"])
-    except (ValueError, TypeError):
+        return verify_firebase_token(token, require_email_verified=False)
+    except HTTPException:
         return None
-
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user or not user.is_active:
-        return None
-
-    return user

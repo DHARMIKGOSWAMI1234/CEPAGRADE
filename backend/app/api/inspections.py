@@ -1,9 +1,12 @@
+from pathlib import Path
 from typing import List, Optional
-from fastapi import APIRouter, Depends, File, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
-from app.core.deps import get_current_user_optional
+from app.core.config import settings
+from app.core.deps import get_current_user, get_current_user_optional
+from app.core.firebase_auth import AuthenticatedUser
 from app.db.database import get_db
-from app.db.models import User
+from app.db.models import Inspection, OnionResult
 from app.schemas.inspection import (
     InspectionDetailResponse,
     InspectionSummary,
@@ -27,20 +30,20 @@ def create_inspection(
     file: UploadFile = File(..., description="Onion batch image (JPEG, PNG, WEBP)"),
     process: bool = Query(False, description="Whether to execute end-to-end CV pipeline immediately"),
     reference_diameter_mm: Optional[float] = Query(None, description="Known physical reference dimension in mm"),
-    current_user: Optional[User] = Depends(get_current_user_optional),
+    current_user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> InspectionUploadResponse:
     """
-    Uploads an image, validates binary format and size, stores it securely,
-    and initializes an inspection record. If process=True, executes the real
-    computer vision pipeline and persists results.
+    Uploads an image, validates format and size, assigns ownership from verified JWT,
+    and initializes an inspection record. If process=True, executes the CV pipeline.
     """
     return inspection_service.create_inspection(
         db=db,
         file=file,
         auto_process=process,
         known_reference_diameter_mm=reference_diameter_mm,
-        user_id=current_user.id if current_user else None,
+        owner_id=current_user.id,
+        user_id=current_user.int_id,
     )
 
 
@@ -52,12 +55,21 @@ def create_inspection(
 def process_inspection(
     inspection_id: str,
     reference_diameter_mm: Optional[float] = Query(None, description="Known physical reference dimension in mm"),
+    current_user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> InspectionDetailResponse:
     """
-    Executes the full Phase 04 computer vision inspection pipeline on the saved inspection image:
-    Segmentation -> Extraction -> Morphometry -> Calibration -> Quality -> Grading -> Persistence.
+    Executes the full Phase 04 computer vision inspection pipeline on the saved inspection image.
+    Enforces that caller has ownership permissions.
     """
+    record = db.query(Inspection).filter(Inspection.inspection_id == inspection_id).first()
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Inspection with ID '{inspection_id}' not found.",
+        )
+    inspection_service.verify_inspection_ownership(record, user_id=current_user.id, role=current_user.role)
+
     return inspection_service.execute_inspection(
         db=db,
         inspection_id=inspection_id,
@@ -73,16 +85,17 @@ def process_inspection(
 def list_inspections(
     skip: int = Query(0, ge=0, description="Offset for pagination"),
     limit: int = Query(50, ge=1, le=100, description="Maximum number of inspections to return"),
-    current_user: Optional[User] = Depends(get_current_user_optional),
+    current_user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> List[InspectionSummary]:
-    """Retrieves a paginated list of recent inspections."""
+    """Retrieves a paginated list of recent inspections scoped to authenticated user ownership."""
     return inspection_service.list_inspections(
         db=db,
         skip=skip,
         limit=limit,
-        user_id=current_user.id if current_user else None,
-        role=current_user.role if current_user else None,
+        owner_id=current_user.id,
+        user_id=current_user.int_id,
+        role=current_user.role,
     )
 
 
@@ -93,10 +106,16 @@ def list_inspections(
 )
 def get_inspection(
     inspection_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> InspectionDetailResponse:
-    """Retrieves full inspection record by ID, including aggregated metrics and onion-level list."""
-    return inspection_service.get_inspection(db=db, inspection_id=inspection_id)
+    """Retrieves full inspection record by ID, verifying owner identity."""
+    return inspection_service.get_inspection(
+        db=db,
+        inspection_id=inspection_id,
+        user_id=current_user.id,
+        role=current_user.role,
+    )
 
 
 @router.get(
@@ -106,10 +125,16 @@ def get_inspection(
 )
 def get_inspection_results(
     inspection_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> List[OnionResultResponse]:
     """Retrieves list of detected onions and individual grading results for an inspection."""
-    return inspection_service.get_inspection_results(db=db, inspection_id=inspection_id)
+    return inspection_service.get_inspection_results(
+        db=db,
+        inspection_id=inspection_id,
+        user_id=current_user.id,
+        role=current_user.role,
+    )
 
 
 @router.get(
@@ -119,10 +144,16 @@ def get_inspection_results(
 )
 def get_inspection_report(
     inspection_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ReportResponse:
-    """Retrieves inspection report status or reference."""
-    return report_service.generate_inspection_report(db=db, inspection_id=inspection_id)
+    """Retrieves inspection report status or reference, enforcing caller ownership."""
+    return report_service.generate_inspection_report(
+        db=db,
+        inspection_id=inspection_id,
+        user_id=current_user.id,
+        role=current_user.role,
+    )
 
 
 @router.get(
@@ -131,12 +162,18 @@ def get_inspection_report(
 )
 def download_inspection_report_pdf(
     inspection_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Serves the generated PDF inspection report binary with application/pdf content type."""
     from fastapi.responses import FileResponse
 
-    pdf_path, filename = report_service.get_report_pdf_file(db=db, inspection_id=inspection_id)
+    pdf_path, filename = report_service.get_report_pdf_file(
+        db=db,
+        inspection_id=inspection_id,
+        user_id=current_user.id,
+        role=current_user.role,
+    )
     return FileResponse(
         path=str(pdf_path),
         media_type="application/pdf",
@@ -150,19 +187,19 @@ def download_inspection_report_pdf(
 )
 def get_inspection_image(
     inspection_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Safely serves the uploaded image for this inspection."""
     from fastapi.responses import FileResponse
-    from app.core.config import settings
-    from app.db.models import Inspection
 
     record = db.query(Inspection).filter(Inspection.inspection_id == inspection_id).first()
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Inspection '{inspection_id}' not found.")
     
+    inspection_service.verify_inspection_ownership(record, user_id=current_user.id, role=current_user.role)
+
     img_path = Path(record.image_path).resolve()
-    # Guard against arbitrary file exposure
     if not str(img_path).startswith(str(settings.upload_path.resolve())):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
     if not img_path.exists():
@@ -178,22 +215,22 @@ def get_inspection_image(
 )
 def get_inspection_overlay(
     inspection_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Serves the rendered AI segmentation overlay image with polygons and labels."""
     from fastapi.responses import FileResponse
-    from app.core.config import settings
-    from app.db.models import Inspection
 
     record = db.query(Inspection).filter(Inspection.inspection_id == inspection_id).first()
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Inspection '{inspection_id}' not found.")
 
+    inspection_service.verify_inspection_ownership(record, user_id=current_user.id, role=current_user.role)
+
     overlay_file = (settings.upload_path / f"{inspection_id}_overlay.jpg").resolve()
     if not str(overlay_file).startswith(str(settings.upload_path.resolve())):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
     if not overlay_file.exists():
-        # Fall back to original image if overlay not yet rendered
         img_path = Path(record.image_path).resolve()
         if img_path.exists():
             return FileResponse(img_path, media_type="image/jpeg")
@@ -210,9 +247,15 @@ def get_inspection_overlay(
 def get_single_onion(
     inspection_id: str,
     onion_number: int,
+    current_user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> OnionResultResponse:
     """Retrieves full evaluation and morphometry data for an individual onion."""
+    record = db.query(Inspection).filter(Inspection.inspection_id == inspection_id).first()
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Inspection '{inspection_id}' not found.")
+    inspection_service.verify_inspection_ownership(record, user_id=current_user.id, role=current_user.role)
+
     return inspection_service.get_single_onion_result(db=db, inspection_id=inspection_id, onion_number=onion_number)
 
 
@@ -223,11 +266,16 @@ def get_single_onion(
 def get_onion_crop(
     inspection_id: str,
     onion_number: int,
+    current_user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Serves the extracted bounding-box crop for a specific onion."""
     from fastapi.responses import FileResponse
-    from app.core.config import settings
+
+    record = db.query(Inspection).filter(Inspection.inspection_id == inspection_id).first()
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Inspection '{inspection_id}' not found.")
+    inspection_service.verify_inspection_ownership(record, user_id=current_user.id, role=current_user.role)
 
     crop_path = (settings.upload_path / f"{inspection_id}_onion_{onion_number}_crop.jpg").resolve()
     if not str(crop_path).startswith(str(settings.upload_path.resolve())):
@@ -245,11 +293,16 @@ def get_onion_crop(
 def get_onion_mask(
     inspection_id: str,
     onion_number: int,
+    current_user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Serves the isolated masked crop (background zeroed) for a specific onion."""
     from fastapi.responses import FileResponse
-    from app.core.config import settings
+
+    record = db.query(Inspection).filter(Inspection.inspection_id == inspection_id).first()
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Inspection '{inspection_id}' not found.")
+    inspection_service.verify_inspection_ownership(record, user_id=current_user.id, role=current_user.role)
 
     mask_path = (settings.upload_path / f"{inspection_id}_onion_{onion_number}_mask.png").resolve()
     if not str(mask_path).startswith(str(settings.upload_path.resolve())):
@@ -258,4 +311,3 @@ def get_onion_mask(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Onion masked crop asset not found.")
 
     return FileResponse(mask_path, media_type="image/png")
-

@@ -1,15 +1,159 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  updateProfile,
+  onAuthStateChanged,
+  type User as FirebaseUser,
+} from 'firebase/auth';
+import { auth, isFirebaseConfigured } from '../lib/firebase';
 import { authApi } from '../api/auth';
 import type { UserRole } from '../api/auth';
 
 export type { UserRole };
 
+export type AuthErrorCode =
+  | 'RATE_LIMIT'
+  | 'INVALID_EMAIL'
+  | 'WEAK_PASSWORD'
+  | 'PASSWORD_MISMATCH'
+  | 'USER_ALREADY_EXISTS'
+  | 'EMAIL_NOT_CONFIRMED'
+  | 'NETWORK_ERROR'
+  | 'INVALID_CREDENTIALS'
+  | 'GENERIC_AUTH_ERROR';
+
+export class AuthError extends Error {
+  code: AuthErrorCode;
+  constructor(code: AuthErrorCode, message: string) {
+    super(message);
+    this.name = 'AuthError';
+    this.code = code;
+    Object.setPrototypeOf(this, AuthError.prototype);
+  }
+}
+
+/**
+ * Maps Firebase Auth error codes to user-friendly CEPA GRADE messages.
+ * Never exposes raw error objects, internal API codes, or stack traces.
+ */
+export const mapFirebaseAuthError = (err: any): { code: AuthErrorCode; message: string } => {
+  if (!err) {
+    return {
+      code: 'GENERIC_AUTH_ERROR',
+      message: 'Authentication service temporarily unavailable. Please try again later.',
+    };
+  }
+
+  const code = (err.code || '').toLowerCase();
+  const msg = (err.message || '').toLowerCase();
+
+  // 1. Invalid Credentials / Wrong Password / User Not Found
+  if (
+    code === 'auth/invalid-credential' ||
+    code === 'auth/wrong-password' ||
+    code === 'auth/user-not-found' ||
+    msg.includes('invalid-credential') ||
+    msg.includes('wrong-password') ||
+    msg.includes('user-not-found')
+  ) {
+    return {
+      code: 'INVALID_CREDENTIALS',
+      message: 'Incorrect email or password.',
+    };
+  }
+
+  // 2. Email Already Registered
+  if (
+    code === 'auth/email-already-in-use' ||
+    msg.includes('email-already-in-use') ||
+    msg.includes('already registered') ||
+    msg.includes('already exists')
+  ) {
+    return {
+      code: 'USER_ALREADY_EXISTS',
+      message: 'An account with this email address already exists. Please sign in instead.',
+    };
+  }
+
+  // 3. Email Not Verified
+  if (
+    code === 'auth/email-not-verified' ||
+    msg.includes('verify your email') ||
+    msg.includes('not verified')
+  ) {
+    return {
+      code: 'EMAIL_NOT_CONFIRMED',
+      message: 'Please verify your email before accessing CEPA GRADE.',
+    };
+  }
+
+  // 4. Invalid Email Format
+  if (
+    code === 'auth/invalid-email' ||
+    msg.includes('invalid-email') ||
+    (msg.includes('invalid') && msg.includes('email'))
+  ) {
+    return {
+      code: 'INVALID_EMAIL',
+      message: 'Please enter a valid email address.',
+    };
+  }
+
+  // 5. Weak Password (< 6 chars)
+  if (
+    code === 'auth/weak-password' ||
+    msg.includes('weak-password') ||
+    msg.includes('least 6')
+  ) {
+    return {
+      code: 'WEAK_PASSWORD',
+      message: 'Password must be at least 6 characters long and include a mix of characters.',
+    };
+  }
+
+  // 6. Rate Limiting / Too Many Requests
+  if (
+    code === 'auth/too-many-requests' ||
+    msg.includes('too-many-requests') ||
+    msg.includes('rate limit') ||
+    msg.includes('too many')
+  ) {
+    return {
+      code: 'RATE_LIMIT',
+      message: 'Too many authentication attempts. Please wait and try again.',
+    };
+  }
+
+  // 7. Network / Connection Errors
+  if (
+    code === 'auth/network-request-failed' ||
+    msg.includes('network') ||
+    msg.includes('failed to fetch') ||
+    msg.includes('load failed')
+  ) {
+    return {
+      code: 'NETWORK_ERROR',
+      message: 'Network connection issue. Please check your connection and try again.',
+    };
+  }
+
+  // 8. Generic Auth Failure
+  return {
+    code: 'GENERIC_AUTH_ERROR',
+    message: 'Authentication service temporarily unavailable. Please try again later.',
+  };
+};
+
 export interface User {
-  id: string | number;
+  id: string; // Firebase UID
   name: string;
   email: string;
   role: UserRole;
+  emailVerified: boolean;
   is_active?: boolean;
   created_at?: string;
 }
@@ -19,18 +163,34 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  isSupabaseConfigured: boolean;
+  loading: boolean;
+  isFirebaseConfigured: boolean;
+  // Deprecated alias for backwards-compatibility with older components during migration
+  isSupabaseConfigured?: boolean;
   login: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
   signup: (
     name: string,
     email: string,
     password: string,
-    confirmPassword?: string,
-    role?: UserRole
-  ) => Promise<void>;
+    confirmPassword?: string
+  ) => Promise<{ emailConfirmationRequired: boolean }>;
+  signUp: (
+    name: string,
+    email: string,
+    password: string,
+    confirmPassword?: string
+  ) => Promise<{ emailConfirmationRequired: boolean }>;
+  resendVerificationEmail: (email?: string) => Promise<{ success: boolean; message: string }>;
+  resetPassword: (email: string) => Promise<{ success: boolean; message: string }>;
+  refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
+  signOut: () => Promise<void>;
   error: string | null;
+  errorCode: AuthErrorCode | null;
   clearError: () => void;
+  infoMessage: string | null;
+  clearInfoMessage: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,8 +214,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<AuthErrorCode | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
-  const clearError = useCallback(() => setError(null), []);
+  const clearError = useCallback(() => {
+    setError(null);
+    setErrorCode(null);
+  }, []);
+  const clearInfoMessage = useCallback(() => setInfoMessage(null), []);
 
   const saveSession = useCallback((authToken: string, authUser: User) => {
     setToken(authToken);
@@ -76,177 +242,164 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('onionvision_user');
   }, []);
 
-  // Initialize session on mount
+  // Initialize session and subscribe to Firebase Auth state changes
   useEffect(() => {
     let isMounted = true;
 
-    const initAuth = async () => {
-      try {
-        if (isSupabaseConfigured && supabase) {
-          // 1. Supabase Session Check
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user && isMounted) {
-            const meta = session.user.user_metadata || {};
-            const authUser: User = {
-              id: session.user.id,
-              name: meta.full_name || meta.name || session.user.email?.split('@')[0] || 'Operator',
-              email: session.user.email || '',
-              role: (meta.role as UserRole) || 'operator',
-              is_active: true,
-              created_at: session.user.created_at,
-            };
-            saveSession(session.access_token, authUser);
-          } else if (!session && isMounted) {
-            // Check if there was an offline / local development token
-            const localToken = localStorage.getItem('cepagrade_token') || localStorage.getItem('onionvision_token');
-            if (localToken && !localToken.startsWith('sb-')) {
-              // Attempt to validate with backend /api/auth/me
-              try {
-                const currentUser = await authApi.getMe();
-                if (isMounted) {
-                  const mapped: User = {
-                    id: currentUser.id,
-                    name: currentUser.name,
-                    email: currentUser.email,
-                    role: currentUser.role,
-                    is_active: currentUser.is_active,
-                    created_at: currentUser.created_at,
-                  };
-                  saveSession(localToken, mapped);
-                }
-              } catch {
-                clearSession();
-              }
-            } else {
-              clearSession();
-            }
-          }
-        } else {
-          // 2. Local / Development Backend Session Check (Offline mode)
-          const storedToken =
-            localStorage.getItem('cepagrade_token') || localStorage.getItem('onionvision_token');
-          if (storedToken) {
-            try {
-              const currentUser = await authApi.getMe();
-              if (isMounted) {
-                const mapped: User = {
-                  id: currentUser.id,
-                  name: currentUser.name,
-                  email: currentUser.email,
-                  role: currentUser.role,
-                  is_active: currentUser.is_active,
-                  created_at: currentUser.created_at,
-                };
-                saveSession(storedToken, mapped);
-              }
-            } catch {
-              clearSession();
-            }
-          }
-        }
-      } catch (err: any) {
-        console.warn('Auth initialization check notice:', err?.message || err);
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    initAuth();
-
-    // Listen to Supabase Auth state changes if configured
-    let subscription: { unsubscribe: () => void } | null = null;
-    if (isSupabaseConfigured && supabase) {
-      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (isFirebaseConfigured && auth) {
+      // Firebase Modular Auth State Listener
+      const unsubscribe = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
         if (!isMounted) return;
-        if (session?.user) {
-          const meta = session.user.user_metadata || {};
-          const authUser: User = {
-            id: session.user.id,
-            name: meta.full_name || meta.name || session.user.email?.split('@')[0] || 'Operator',
-            email: session.user.email || '',
-            role: (meta.role as UserRole) || 'operator',
-            is_active: true,
-            created_at: session.user.created_at,
-          };
-          saveSession(session.access_token, authUser);
+
+        if (fbUser) {
+          try {
+            // Only establish authenticated session if email is verified
+            if (fbUser.emailVerified) {
+              const idToken = await fbUser.getIdToken();
+              const authUser: User = {
+                id: fbUser.uid,
+                name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Operator',
+                email: fbUser.email || '',
+                role: 'operator',
+                emailVerified: true,
+                is_active: true,
+                created_at: fbUser.metadata.creationTime,
+              };
+              saveSession(idToken, authUser);
+            } else {
+              // User exists but has unverified email -> do not grant authenticated access
+              clearSession();
+            }
+          } catch (tokenErr) {
+            console.warn('Firebase token retrieval error:', tokenErr);
+            clearSession();
+          }
         } else {
           clearSession();
         }
         setIsLoading(false);
       });
-      subscription = data.subscription;
-    }
 
-    return () => {
-      isMounted = false;
-      if (subscription) {
-        subscription.unsubscribe();
+      return () => {
+        isMounted = false;
+        unsubscribe();
+      };
+    } else {
+      // Offline / Local Development Fallback
+      const storedToken =
+        localStorage.getItem('cepagrade_token') || localStorage.getItem('onionvision_token');
+      if (storedToken) {
+        authApi
+          .getMe()
+          .then((currentUser) => {
+            if (isMounted) {
+              const mapped: User = {
+                id: String(currentUser.id),
+                name: currentUser.name,
+                email: currentUser.email,
+                role: currentUser.role,
+                emailVerified: true,
+                is_active: currentUser.is_active,
+                created_at: currentUser.created_at,
+              };
+              saveSession(storedToken, mapped);
+            }
+          })
+          .catch(() => {
+            if (isMounted) clearSession();
+          })
+          .finally(() => {
+            if (isMounted) setIsLoading(false);
+          });
+      } else {
+        setIsLoading(false);
       }
-    };
+    }
   }, [saveSession, clearSession]);
 
   const login = useCallback(
     async (email: string, password: string) => {
       setIsLoading(true);
       setError(null);
+      setErrorCode(null);
+      setInfoMessage(null);
       try {
         if (!email.trim() || !password.trim()) {
-          throw new Error('Please enter both email and password.');
+          throw new AuthError('INVALID_CREDENTIALS', 'Please enter both email and password.');
         }
 
-        if (isSupabaseConfigured && supabase) {
-          // Real Supabase Auth login
-          const { data, error: supaErr } = await supabase.auth.signInWithPassword({
-            email: email.trim(),
-            password,
-          });
+        if (isFirebaseConfigured && auth) {
+          // Real Firebase Auth login
+          const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+          const fbUser = userCredential.user;
 
-          if (supaErr) {
-            // Provide human-friendly error messages
-            if (supaErr.message.includes('Invalid login credentials')) {
-              throw new Error('Invalid email or password. Please verify your credentials.');
-            }
-            if (supaErr.message.includes('Email not confirmed')) {
-              throw new Error('Please confirm your email address before signing in.');
-            }
-            throw new Error(supaErr.message);
+          // Reload user to ensure latest emailVerified status
+          await fbUser.reload();
+
+          if (!fbUser.emailVerified) {
+            // Sign out of client session immediately to prevent unverified access
+            await firebaseSignOut(auth).catch(() => {});
+            clearSession();
+            throw new AuthError(
+              'EMAIL_NOT_CONFIRMED',
+              'Please verify your email before accessing CEPA GRADE.'
+            );
           }
 
-          if (data.session && data.user) {
-            const meta = data.user.user_metadata || {};
-            const authUser: User = {
-              id: data.user.id,
-              name: meta.full_name || meta.name || data.user.email?.split('@')[0] || 'Operator',
-              email: data.user.email || email,
-              role: (meta.role as UserRole) || 'operator',
-              is_active: true,
-              created_at: data.user.created_at,
-            };
-            saveSession(data.session.access_token, authUser);
-          }
+          // Retrieve verified Firebase ID Token
+          const idToken = await fbUser.getIdToken(/* forceRefresh */ true);
+          const authUser: User = {
+            id: fbUser.uid,
+            name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Operator',
+            email: fbUser.email || email,
+            role: 'operator',
+            emailVerified: true,
+            is_active: true,
+            created_at: fbUser.metadata.creationTime,
+          };
+          saveSession(idToken, authUser);
         } else {
-          // Fallback to local FastAPI development auth (e.g. demo credentials)
-          const res = await authApi.login({ email: email.trim(), password });
-          saveSession(res.access_token, {
-            id: res.user.id,
-            name: res.user.name,
-            email: res.user.email,
-            role: res.user.role,
-            is_active: res.user.is_active,
-            created_at: res.user.created_at,
-          });
+          // Fallback to local FastAPI development auth (offline mode only)
+          try {
+            const res = await authApi.login({ email: email.trim(), password });
+            saveSession(res.access_token, {
+              id: String(res.user.id),
+              name: res.user.name,
+              email: res.user.email,
+              role: res.user.role,
+              emailVerified: true,
+              is_active: res.user.is_active,
+              created_at: res.user.created_at,
+            });
+          } catch (apiErr: any) {
+            const detail = apiErr?.response?.data?.detail;
+            if (
+              detail?.toLowerCase().includes('credential') ||
+              detail?.toLowerCase().includes('password')
+            ) {
+              throw new AuthError('INVALID_CREDENTIALS', 'Incorrect email or password.');
+            }
+            throw new AuthError(
+              'GENERIC_AUTH_ERROR',
+              detail || 'Login failed. Please verify your credentials.'
+            );
+          }
         }
       } catch (err: any) {
-        const msg = err?.response?.data?.detail || err?.message || 'Login failed. Please try again.';
-        setError(msg);
-        throw new Error(msg);
+        if (err instanceof AuthError) {
+          setError(err.message);
+          setErrorCode(err.code);
+          throw err;
+        }
+        const mapped = mapFirebaseAuthError(err);
+        setError(mapped.message);
+        setErrorCode(mapped.code);
+        throw new AuthError(mapped.code, mapped.message);
       } finally {
         setIsLoading(false);
       }
     },
-    [saveSession]
+    [saveSession, clearSession]
   );
 
   const signup = useCallback(
@@ -254,101 +407,190 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       name: string,
       email: string,
       password: string,
-      confirmPassword?: string,
-      role: UserRole = 'operator'
-    ) => {
+      confirmPassword?: string
+    ): Promise<{ emailConfirmationRequired: boolean }> => {
       setIsLoading(true);
       setError(null);
+      setErrorCode(null);
+      setInfoMessage(null);
       try {
         if (!name.trim() || !email.trim() || !password) {
-          throw new Error('All fields are required.');
-        }
-
-        if (confirmPassword !== undefined && password !== confirmPassword) {
-          throw new Error('Passwords do not match. Please re-enter your password.');
-        }
-
-        if (password.length < 6) {
-          throw new Error('Password must be at least 6 characters long.');
-        }
-
-        // Strict security rule: Never allow public users to self-register as admin
-        if (role === 'admin') {
-          throw new Error('Public registration for the Administrator role is strictly restricted.');
+          throw new AuthError('INVALID_EMAIL', 'All fields are required.');
         }
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email.trim())) {
-          throw new Error('Please enter a valid email address.');
+          throw new AuthError('INVALID_EMAIL', 'Please enter a valid email address.');
         }
 
-        if (isSupabaseConfigured && supabase) {
-          // Real Supabase Auth signup
-          const { data, error: supaErr } = await supabase.auth.signUp({
-            email: email.trim(),
-            password,
-            options: {
-              data: {
-                full_name: name.trim(),
-                role: role || 'operator',
-              },
-            },
+        if (password.length < 6) {
+          throw new AuthError(
+            'WEAK_PASSWORD',
+            'Password must be at least 6 characters long and include a mix of characters.'
+          );
+        }
+
+        if (confirmPassword !== undefined && password !== confirmPassword) {
+          throw new AuthError('PASSWORD_MISMATCH', 'Passwords do not match. Please re-enter your password.');
+        }
+
+        if (isFirebaseConfigured && auth) {
+          // Real Firebase Auth signup - Default public role is strictly operator
+          const userCredential = await createUserWithEmailAndPassword(
+            auth,
+            email.trim(),
+            password
+          );
+          const fbUser = userCredential.user;
+
+          // Update display name profile
+          await updateProfile(fbUser, {
+            displayName: name.trim(),
           });
 
-          if (supaErr) {
-            if (supaErr.message.includes('User already registered')) {
-              throw new Error('An account with this email address already exists. Please sign in instead.');
-            }
-            throw new Error(supaErr.message);
-          }
+          // Send official Firebase verification email
+          await sendEmailVerification(fbUser);
 
-          if (data.session && data.user) {
-            const authUser: User = {
-              id: data.user.id,
-              name: name.trim(),
-              email: data.user.email || email,
-              role: role || 'operator',
-              is_active: true,
-              created_at: data.user.created_at,
-            };
-            saveSession(data.session.access_token, authUser);
-          } else {
-            // Email confirmation required by Supabase project settings
-            setError('Registration submitted! If email confirmation is enabled on your Supabase project, please check your inbox.');
-          }
+          // Sign out immediately so unverified account is not authenticated
+          await firebaseSignOut(auth).catch(() => {});
+          clearSession();
+
+          const msg = 'Account created successfully. Please verify your email before signing in.';
+          setInfoMessage(msg);
+          return { emailConfirmationRequired: true };
         } else {
-          // Fallback to local FastAPI development auth
-          const res = await authApi.signup({
-            name: name.trim(),
-            email: email.trim(),
-            password,
-            role: role || 'operator',
-          });
-          saveSession(res.access_token, {
-            id: res.user.id,
-            name: res.user.name,
-            email: res.user.email,
-            role: res.user.role,
-            is_active: res.user.is_active,
-            created_at: res.user.created_at,
-          });
+          // Fallback to local FastAPI development auth (offline mode only)
+          try {
+            const res = await authApi.signup({
+              name: name.trim(),
+              email: email.trim(),
+              password,
+              role: 'operator',
+            });
+            saveSession(res.access_token, {
+              id: String(res.user.id),
+              name: res.user.name,
+              email: res.user.email,
+              role: res.user.role,
+              emailVerified: true,
+              is_active: res.user.is_active,
+              created_at: res.user.created_at,
+            });
+            return { emailConfirmationRequired: false };
+          } catch (apiErr: any) {
+            const detail = apiErr?.response?.data?.detail;
+            if (detail?.toLowerCase().includes('exists')) {
+              throw new AuthError(
+                'USER_ALREADY_EXISTS',
+                'An account with this email address already exists. Please sign in instead.'
+              );
+            }
+            throw new AuthError('GENERIC_AUTH_ERROR', detail || 'Registration failed. Please try again.');
+          }
         }
       } catch (err: any) {
-        const msg = err?.response?.data?.detail || err?.message || 'Registration failed. Please try again.';
-        setError(msg);
-        throw new Error(msg);
+        if (err instanceof AuthError) {
+          setError(err.message);
+          setErrorCode(err.code);
+          throw err;
+        }
+        const mapped = mapFirebaseAuthError(err);
+        setError(mapped.message);
+        setErrorCode(mapped.code);
+        throw new AuthError(mapped.code, mapped.message);
       } finally {
         setIsLoading(false);
       }
     },
-    [saveSession]
+    [saveSession, clearSession]
+  );
+
+  const resendVerificationEmail = useCallback(
+    async (_emailToVerify?: string): Promise<{ success: boolean; message: string }> => {
+      setIsLoading(true);
+      setError(null);
+      setErrorCode(null);
+      setInfoMessage(null);
+      try {
+        if (isFirebaseConfigured && auth) {
+          if (auth.currentUser) {
+            await sendEmailVerification(auth.currentUser);
+            const msg = 'A verification email has been sent. Please check your inbox and spam folder.';
+            setInfoMessage(msg);
+            return { success: true, message: msg };
+          } else {
+            // If user is not currently in memory, instruct them to log in to trigger resend
+            const msg = 'Please sign in with your credentials to trigger a fresh verification email.';
+            setInfoMessage(msg);
+            return { success: true, message: msg };
+          }
+        } else {
+          // Offline mode simulation
+          const msg = 'In offline development mode, email verification is simulated as completed.';
+          setInfoMessage(msg);
+          return { success: true, message: msg };
+        }
+      } catch (err: any) {
+        if (err instanceof AuthError) {
+          setError(err.message);
+          setErrorCode(err.code);
+          throw err;
+        }
+        const mapped = mapFirebaseAuthError(err);
+        setError(mapped.message);
+        setErrorCode(mapped.code);
+        throw new AuthError(mapped.code, mapped.message);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
+
+  const resetPassword = useCallback(
+    async (email: string): Promise<{ success: boolean; message: string }> => {
+      setIsLoading(true);
+      setError(null);
+      setErrorCode(null);
+      setInfoMessage(null);
+      try {
+        const cleanEmail = email.trim();
+        if (!cleanEmail) {
+          throw new AuthError('INVALID_EMAIL', 'Please enter your email address to reset password.');
+        }
+
+        if (isFirebaseConfigured && auth) {
+          await sendPasswordResetEmail(auth, cleanEmail);
+          const msg = 'Password reset instructions sent. Please check your email inbox.';
+          setInfoMessage(msg);
+          return { success: true, message: msg };
+        } else {
+          const msg = 'Password reset link simulated in offline development mode.';
+          setInfoMessage(msg);
+          return { success: true, message: msg };
+        }
+      } catch (err: any) {
+        if (err instanceof AuthError) {
+          setError(err.message);
+          setErrorCode(err.code);
+          throw err;
+        }
+        const mapped = mapFirebaseAuthError(err);
+        setError(mapped.message);
+        setErrorCode(mapped.code);
+        throw new AuthError(mapped.code, mapped.message);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
   );
 
   const logout = useCallback(async () => {
     setIsLoading(true);
     try {
-      if (isSupabaseConfigured && supabase) {
-        await supabase.auth.signOut();
+      if (isFirebaseConfigured && auth) {
+        await firebaseSignOut(auth).catch(() => {});
       } else {
         await authApi.logout().catch(() => {});
       }
@@ -358,19 +600,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [clearSession]);
 
+  const refreshUser = useCallback(async () => {
+    if (auth?.currentUser) {
+      await auth.currentUser.reload();
+      const currentUser = auth.currentUser;
+      const freshToken = await currentUser.getIdToken(true);
+      setToken(freshToken);
+      localStorage.setItem('cepagrade_token', freshToken);
+      const appUser: User = {
+        id: currentUser.uid,
+        name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Operator',
+        email: currentUser.email || '',
+        role: 'operator',
+        emailVerified: currentUser.emailVerified,
+        is_active: true,
+        created_at: currentUser.metadata.creationTime,
+      };
+      setUser(appUser);
+      localStorage.setItem('cepagrade_user', JSON.stringify(appUser));
+    }
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
         user,
         token,
-        isAuthenticated: !!token && !!user,
+        isAuthenticated: !!token && !!user && user.emailVerified,
         isLoading,
-        isSupabaseConfigured,
+        loading: isLoading,
+        isFirebaseConfigured,
+        isSupabaseConfigured: isFirebaseConfigured,
         login,
+        signIn: login,
         signup,
+        signUp: signup,
+        resendVerificationEmail,
+        resetPassword,
+        refreshUser,
         logout,
+        signOut: logout,
         error,
+        errorCode,
         clearError,
+        infoMessage,
+        clearInfoMessage,
       }}
     >
       {children}

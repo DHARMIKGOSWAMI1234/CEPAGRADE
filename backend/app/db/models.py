@@ -41,6 +41,7 @@ class Inspection(Base):
 
     # Optional user ownership
     user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    owner_id = Column(String(128), nullable=True, index=True)
 
     # Aggregated AI-derived metrics (nullable until ML inference pipeline runs in future phases)
     total_onions = Column(Integer, nullable=True)

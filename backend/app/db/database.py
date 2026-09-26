@@ -47,6 +47,8 @@ def init_db() -> None:
                 conn.execute(text("ALTER TABLE inspections ADD COLUMN overlay_path VARCHAR(512)"))
             if "user_id" not in insp_cols:
                 conn.execute(text("ALTER TABLE inspections ADD COLUMN user_id INTEGER REFERENCES users(id)"))
+            if "owner_id" not in insp_cols:
+                conn.execute(text("ALTER TABLE inspections ADD COLUMN owner_id VARCHAR(128)"))
 
             # Check onion_results table
             result = conn.execute(text("PRAGMA table_info(onion_results)"))

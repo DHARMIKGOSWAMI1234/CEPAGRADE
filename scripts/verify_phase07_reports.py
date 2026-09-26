@@ -32,7 +32,6 @@ def main():
     print("ONIONVISION — PHASE 07 PROFESSIONAL REPORT & PDF EXPORT VERIFICATION")
     print("=" * 70)
 
-    client = TestClient(app)
     db = SessionLocal()
 
     # -------------------------------------------------------------------------
@@ -48,6 +47,13 @@ def main():
     print(f"\n[1] Verified Real Inspection in DB: {insp_id}")
     print(f"    Total Onions: {real_insp.total_onions}, Quality Score: {real_insp.quality_score}")
     print(f"    Avg Size: {real_insp.average_size_mm} mm, Calibration: {real_insp.calibration_json[:60]}...")
+
+    from app.core.firebase_auth import create_test_firebase_token
+
+    auth_uid = real_insp.owner_id or "op-phase07"
+    client = TestClient(app)
+    token = create_test_firebase_token(uid=auth_uid, email="operator@cepagrade.ai", email_verified=True)
+    client.headers["Authorization"] = f"Bearer {token}"
 
     # -------------------------------------------------------------------------
     # 2. JSON Report Metadata Retrieval
@@ -94,6 +100,7 @@ def main():
     uncal_record = Inspection(
         inspection_id=uncal_id,
         image_path=real_insp.image_path,
+        owner_id=auth_uid,
         status="completed",
         total_onions=1,
         average_size_mm=None,  # STRICTLY NULL

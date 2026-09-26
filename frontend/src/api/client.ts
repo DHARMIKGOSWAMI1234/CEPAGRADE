@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { auth } from '../lib/firebase';
 
 // Default to env or origin
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -11,9 +12,22 @@ export const apiClient = axios.create({
   },
 });
 
-// Request interceptor to automatically attach JWT Bearer token
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('cepagrade_token') || localStorage.getItem('onionvision_token');
+// Request interceptor to automatically attach Firebase ID Bearer token
+apiClient.interceptors.request.use(async (config) => {
+  let token = localStorage.getItem('cepagrade_token') || localStorage.getItem('onionvision_token');
+  if (auth?.currentUser) {
+    try {
+      // Ensure token is fresh (re-authenticating seamlessly in background if nearing expiry)
+      const freshToken = await auth.currentUser.getIdToken();
+      if (freshToken) {
+        token = freshToken;
+        localStorage.setItem('cepagrade_token', freshToken);
+      }
+    } catch {
+      // Fallback to cached token if network lookup fails
+    }
+  }
+
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
