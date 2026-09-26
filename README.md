@@ -54,6 +54,7 @@
 - [15. Automated PDF Reporting Engine](#15-automated-pdf-reporting-engine)
 - [16. Repository Structure](#16-repository-structure)
 - [17. Installation & Setup Guide](#17-installation--setup-guide)
+- [CEPA GRADE Global CLI](#cepa-grade-global-cli)
 - [18. Running CEPA GRADE](#18-running-cepa-grade)
 - [19. Demonstration Workflow](#19-demonstration-workflow)
 - [20. Automated Testing & Verification](#20-automated-testing--verification)
@@ -783,6 +784,102 @@ VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
 ```
+
+---
+
+## CEPA GRADE Global CLI
+
+CEPA GRADE includes a dedicated, zero-dependency global Command Line Interface (`cepagrade`) that allows you to control the entire system globally from **any** PowerShell or Command Prompt directory without manually navigating to the project folder.
+
+### Global Installation & Linking
+
+To register the `cepagrade` command globally in your system `PATH`:
+
+```powershell
+# 1. Navigate to the repository root once
+cd <CEPAGRADE project root>
+
+# 2. Link globally via npm
+npm link
+```
+
+After running `npm link`, the `cepagrade` executable is registered in your user environment. You can open a new terminal in any directory (such as `Downloads` or `Desktop`) and manage CEPA GRADE directly:
+
+```powershell
+PS C:\Users\<username>\Downloads> cepagrade
+```
+
+> **Dynamic Path Resolution:** The CLI resolves its own physical installation path dynamically using symlink dereferencing (`fs.realpathSync`). No temporary absolute paths or personal usernames are hardcoded.
+
+---
+
+### Available Commands
+
+| Command | Description |
+| :--- | :--- |
+| `cepagrade` | Start both FastAPI backend and Vite frontend as background processes, verify health, and open the browser. |
+| `cepagrade start` | Alias for `cepagrade` (starts full stack in background). |
+| `cepagrade frontend` | Start the Vite frontend server only (port `5173`). |
+| `cepagrade backend` | Start the FastAPI backend server only (port `8000`). |
+| `cepagrade status` | Inspect real-time running health of backend (`/api/health`) and frontend (`:5173`). |
+| `cepagrade stop` | Cleanly terminate all running CEPA GRADE processes (ports 8000, 5173, and 5174). |
+| `cepagrade help` | Display CLI usage syntax and detected repository root. |
+| `cepagrade --version` | Display current CEPA GRADE CLI version. |
+
+---
+
+### Service URLs
+
+When active, CEPA GRADE services are accessible at:
+
+| Service | URL | Description |
+| :--- | :--- | :--- |
+| **Frontend UI** | [http://localhost:5173](http://localhost:5173) | Operator Inspection Dashboard & Results Viewer |
+| **Backend API** | [http://127.0.0.1:8000](http://127.0.0.1:8000) | FastAPI Core Service |
+| **Swagger Docs** | [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) | Interactive OpenAPI Documentation & Testing |
+| **Health Check** | [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health) | Backend & ML model readiness status probe |
+
+---
+
+### Typical Workflow
+
+A typical daily inspection session with the global CLI:
+
+1. **Open PowerShell anywhere:**
+   Launch your preferred terminal from any working directory.
+2. **Start CEPA GRADE:**
+   ```powershell
+   cepagrade
+   ```
+3. **Wait for services to initialize:**
+   The CLI starts the FastAPI backend and Vite frontend in the background without opening distracting extra terminal windows, verifies health endpoints, and prints:
+   ```
+   ============================================================
+          CEPA GRADE -- AI Onion Quality Inspection System
+   ============================================================
+
+   [1/3] Starting backend...
+   [2/3] Starting frontend...
+   [3/3] Waiting for services...
+
+   ============================================================
+   [SUCCESS] CEPA GRADE is ONLINE
+   Backend:  http://127.0.0.1:8000
+   Frontend: http://localhost:5173
+   ============================================================
+
+   Opening browser...
+   ```
+4. **Conduct inspections:**
+   Perform batch uploads, inspect segmentation masks, and download certified grading reports via the browser UI.
+5. **Check status anytime:**
+   ```powershell
+   cepagrade status
+   ```
+6. **Shut down cleanly when finished:**
+   ```powershell
+   cepagrade stop
+   ```
 
 ---
 

@@ -184,37 +184,115 @@ function verifyEnvironment(target = 'all') {
   }
 }
 
-// Start full stack (frontend + backend) using existing reliable launcher
+// Helper: Spawn FastAPI backend in background with windowsHide
+function spawnBackendProcess() {
+  const backendDir = path.join(PROJECT_ROOT, 'backend');
+  const pythonExe = process.platform === 'win32'
+    ? path.join(backendDir, '.venv', 'Scripts', 'python.exe')
+    : path.join(backendDir, '.venv', 'bin', 'python');
+
+  const child = spawn(
+    pythonExe,
+    ['-m', 'uvicorn', 'app.main:app', '--app-dir', backendDir, '--host', '127.0.0.1', '--port', '8000'],
+    {
+      cwd: PROJECT_ROOT,
+      detached: true,
+      windowsHide: true,
+      stdio: 'ignore',
+    }
+  );
+  child.unref();
+  return child;
+}
+
+// Helper: Spawn Vite frontend in background with windowsHide
+function spawnFrontendProcess() {
+  const frontendDir = path.join(PROJECT_ROOT, 'frontend');
+  const child = spawn(
+    'npm run dev',
+    {
+      cwd: frontendDir,
+      shell: true,
+      detached: true,
+      windowsHide: true,
+      stdio: 'ignore',
+    }
+  );
+  child.unref();
+  return child;
+}
+
+// Helper: Open default browser without lingering terminal
+function openBrowser(url) {
+  if (process.platform === 'win32') {
+    const child = spawn('cmd.exe', ['/c', 'start', '', url], {
+      detached: true,
+      windowsHide: true,
+      stdio: 'ignore',
+    });
+    child.unref();
+  } else if (process.platform === 'darwin') {
+    spawn('open', [url], { detached: true, stdio: 'ignore' }).unref();
+  } else {
+    spawn('xdg-open', [url], { detached: true, stdio: 'ignore' }).unref();
+  }
+}
+
+// Start full stack (frontend + backend) in background with NO visible terminal windows
 async function startAll() {
   printHeader();
   verifyEnvironment('all');
 
-  const runBat = path.join(PROJECT_ROOT, 'run_onionvision.bat');
-  if (fs.existsSync(runBat)) {
-    console.log(`[INFO] Launching CEPA GRADE from: ${PROJECT_ROOT}`);
-    return new Promise((resolve) => {
-      try {
-        const child = spawn('cmd.exe', ['/c', runBat], {
-          cwd: PROJECT_ROOT,
-          stdio: 'inherit',
-        });
-        child.on('close', (code) => {
-          if (code === 0) resolve();
-          else process.exit(code || 1);
-        });
-        child.on('error', (err) => {
-          console.error(`[ERROR] Failed to start services: ${err.message}`);
-          process.exit(1);
-        });
-      } catch (err) {
-        console.error(`[ERROR] Execution failed: ${err.message}`);
-        process.exit(1);
-      }
-    });
+  const backendCheck = await checkUrl('http://127.0.0.1:8000/api/health', 1000);
+  const frontendCheck = await checkUrl('http://localhost:5173', 1000);
+
+  if (!backendCheck.online) {
+    console.log('[1/3] Starting backend...');
+    spawnBackendProcess();
   } else {
-    console.error(`[ERROR] run_onionvision.bat not found at ${runBat}`);
-    process.exit(1);
+    console.log('[1/3] Backend is already running.');
   }
+
+  if (!frontendCheck.online) {
+    console.log('[2/3] Starting frontend...');
+    spawnFrontendProcess();
+  } else {
+    console.log('[2/3] Frontend is already running.');
+  }
+
+  console.log('[3/3] Waiting for services...');
+  let backendReady = backendCheck.online;
+  let frontendReady = frontendCheck.online;
+
+  for (let i = 0; i < 20; i++) {
+    await sleep(1000);
+    if (!backendReady) {
+      const bCheck = await checkUrl('http://127.0.0.1:8000/api/health', 1000);
+      if (bCheck.online) backendReady = true;
+    }
+    if (!frontendReady) {
+      const fCheck = await checkUrl('http://localhost:5173', 1000);
+      if (fCheck.online) frontendReady = true;
+    }
+    if (backendReady && frontendReady) break;
+  }
+
+  console.log('\n============================================================');
+  if (backendReady && frontendReady) {
+    console.log('[SUCCESS] CEPA GRADE is ONLINE');
+  } else if (backendReady) {
+    console.log('[PARTIAL] CEPA GRADE Backend is ONLINE (Frontend still initializing)');
+  } else if (frontendReady) {
+    console.log('[PARTIAL] CEPA GRADE Frontend is ONLINE (Backend still initializing)');
+  } else {
+    console.log('[WARNING] Services launched but health check timed out.');
+  }
+  console.log('Backend:  http://127.0.0.1:8000');
+  console.log('Frontend: http://localhost:5173');
+  console.log('============================================================\n');
+
+  console.log('Opening browser...');
+  openBrowser('http://localhost:5173');
 }
 
 // Start backend only
@@ -223,35 +301,15 @@ async function startBackend() {
   verifyEnvironment('backend');
 
   console.log('[1/3] Checking if backend is already running on port 8000...');
-  const health = await checkUrl('http://127.0.0.1:8000/api/health', 1500);
+  const health = await checkUrl('http://127.0.0.1:8000/api/health', 1000);
   if (health.online) {
     console.log('[INFO] FastAPI backend is ALREADY running on http://127.0.0.1:8000');
     console.log('       Swagger UI: http://127.0.0.1:8000/docs');
     return;
   }
 
-  const backendDir = path.join(PROJECT_ROOT, 'backend');
-  const pythonExe = process.platform === 'win32'
-    ? path.join(backendDir, '.venv', 'Scripts', 'python.exe')
-    : path.join(backendDir, '.venv', 'bin', 'python');
-
   console.log('[2/3] Starting FastAPI backend on http://127.0.0.1:8000 ...');
-  if (process.platform === 'win32') {
-    const cmd = `start "ONIONVISION Backend (FastAPI)" cmd /c ""${pythonExe}" -m uvicorn app.main:app --app-dir "${backendDir}" --host 127.0.0.1 --port 8000"`;
-    const child = spawn(cmd, {
-      cwd: PROJECT_ROOT,
-      shell: true,
-      detached: true,
-      stdio: 'ignore',
-    });
-    child.unref();
-  } else {
-    spawn(pythonExe, ['-m', 'uvicorn', 'app.main:app', '--app-dir', backendDir, '--host', '127.0.0.1', '--port', '8000'], {
-      cwd: PROJECT_ROOT,
-      detached: true,
-      stdio: 'ignore',
-    }).unref();
-  }
+  spawnBackendProcess();
 
   console.log('[3/3] Waiting for backend to initialize...');
   let online = false;
@@ -273,7 +331,7 @@ async function startBackend() {
     console.log('============================================================');
   } else {
     console.warn('\n[WARNING] Backend process launched but health check timed out.');
-    console.warn('Check terminal window or port 8000 logs for details.');
+    console.warn('Check port 8000 logs or terminal status for details.');
   }
 }
 
@@ -283,35 +341,15 @@ async function startFrontend() {
   verifyEnvironment('frontend');
 
   console.log('[1/3] Checking if frontend is already running on port 5173...');
-  const health = await checkUrl('http://localhost:5173', 1500);
+  const health = await checkUrl('http://localhost:5173', 1000);
   if (health.online) {
     console.log('[INFO] Vite frontend is ALREADY running on http://localhost:5173');
-    if (process.platform === 'win32') {
-      const child = spawn('cmd.exe /c start http://localhost:5173', { shell: true, detached: true, stdio: 'ignore' });
-      child.unref();
-    }
+    openBrowser('http://localhost:5173');
     return;
   }
 
-  const frontendDir = path.join(PROJECT_ROOT, 'frontend');
   console.log('[2/3] Starting Vite frontend on http://localhost:5173 ...');
-
-  if (process.platform === 'win32') {
-    const cmd = `start "ONIONVISION Frontend (Vite)" cmd /c "cd /d "${frontendDir}" && npm run dev"`;
-    const child = spawn(cmd, {
-      cwd: PROJECT_ROOT,
-      shell: true,
-      detached: true,
-      stdio: 'ignore',
-    });
-    child.unref();
-  } else {
-    spawn('npm', ['run', 'dev'], {
-      cwd: frontendDir,
-      detached: true,
-      stdio: 'ignore',
-    }).unref();
-  }
+  spawnFrontendProcess();
 
   console.log('[3/3] Waiting for frontend to initialize...');
   let online = false;
@@ -330,14 +368,10 @@ async function startFrontend() {
     console.log('Frontend URL: http://localhost:5173');
     console.log('============================================================');
     console.log('Opening browser...');
-    if (process.platform === 'win32') {
-      execSync('start http://localhost:5173');
-    }
+    openBrowser('http://localhost:5173');
   } else {
     console.warn('\n[WARNING] Frontend process launched. Attempting to open browser...');
-    if (process.platform === 'win32') {
-      execSync('start http://localhost:5173');
-    }
+    openBrowser('http://localhost:5173');
   }
 }
 
